@@ -2,6 +2,7 @@
 
 | File | What it is | Read it when |
 | --- | --- | --- |
+| `event-day.md` | **Event constraints and timeline to the 1:30 PM Sunday cutoff**, judging criteria, awards, the 8-minute demo outline, AWS, submission checklist. Overrides older timelines. | Now, during the event |
 | `software-architecture.md` | How the analysis works, the software stack, server interface, hosting, and the two-modes decision | You want to understand the calculations or the code layout |
 | `how-the-calculations-work.md` | Learning guide: every calculation explained in plain language with real numbers, sensitivity, dashboard quantities, a review checklist for AI-generated code, and by-hand exercises | You want to understand the maths, or design the dashboard |
 | `project-plan.md` | Full project plan, interface contract, assignments, risks (parts still describe the older hardware; the handoff overrides) | You need the big picture or the command format |

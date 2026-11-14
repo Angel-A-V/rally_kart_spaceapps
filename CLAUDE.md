@@ -4,7 +4,10 @@ Team: Angel (CS/CE, owns all code, electronics, integration), Gustavo (ME, Sun m
 The MEs do not write code. All main code (ephemeris, web app, main firmware) lives with Angel to avoid merge conflicts.
 Backup: Challenge 3 (Junior Astronaut Mission Trainer). Go/no-go at the end of Phase 1; see the plan.
 
+**Event is live (Nov 14 to 15, 2026, UC Merced). Read `docs/event-day.md` first:** submission cutoff **1:30 PM Sunday** (not NASA's 11:59 PM), room closes 11:30 PM Saturday with no overnight, Makerspace 1 to 7 PM Saturday only, judging is an **8-minute demo + 3-minute Q&A** against NASA's five criteria (Impact, Creativity, Validity, Relevance, Presentation), 3 of the 7 judges are online, hardware go/no-go at **9:30 AM Sunday**. That file overrides the older timelines in the plan and handoff, and also covers the awards, the AWS question, the submission checklist and the 8-minute demo outline.
+
 Source docs in this folder (read them for detail, do not duplicate them here):
+- `docs/event-day.md`: event constraints, timeline to the cutoff, demo outline, awards, AWS, submission checklist.
 - `docs/project-plan.md`: full plan, interface contract, assignments, risks.
 - `docs/hardware-inventory.md`: what we own.
 - `docs/software-architecture.md`: how the analysis works (calculation steps with a real worked example), the proposed software stack, server interface, hosting options, and the decision to build ONE codebase that runs in two modes (public Cloudflare Pages, no hardware; and local on the UNO Q with the hardware). Index of all docs: `docs/README.md`.
@@ -87,7 +90,7 @@ Interface contract fields still blank in the plan: model footprint, stepper/serv
 
 Read `docs/context-handoff.md` for the full story. Short version:
 - **No machine learning.** Everything is physics and geometry from NASA data, so numbers can be traced and checked. Do not add ML.
-- **Time is about 2 days.** The hardware was cut to a two-day design: the Moon surface (a ~140 mm disc with the printed terrain wall) rotates on the stepper under a fixed lamp. Nothing electrical rides on the disc. One site only for the model. The older plan text still describes the moving Sun ring and servo Earth arm; the handoff file overrides it.
+- **Time is about 2 days** (in practice about 12 hours on Saturday and 5 on Sunday; see `docs/event-day.md`). The hardware was cut to a two-day design: the Moon surface (a ~140 mm disc with the printed terrain wall) rotates on the stepper under a fixed lamp. Nothing electrical rides on the disc. One site only for the model. The older plan text still describes the moving Sun ring and servo Earth arm; the handoff file overrides it.
 - **Model site: Shackleton crater rim, working pick at -89.781, 203.743 E.** Found from LOLA data as the highest rim point on the ridge facing the pole. It is NOT an official landing site. [verify] against a published candidate list before the pitch.
 - **Website vision:** compare two spots, chosen from curated sites first, then typed coordinates, then clicking a 3D Moon (the last two are SHOULD/COULD; see MUST list).
 - **Done:** `app/python/scripts/make_skyline.py` builds `data/skyline_shackleton_rim.csv` (azimuth_deg, skyline_deg; 360 rows) from real LOLA terrain. `app/python/tests/` has 16 passing checks (skyline: made-up terrain with known answers plus real-data checks; Horizons: parser, query and physics sanity). Gustavo's wall script reads that CSV. Raw terrain (`data/raw/`) is git-ignored; the script re-downloads it.
@@ -110,3 +113,6 @@ Read `docs/context-handoff.md` for the full story. Short version:
 - Filament type, colors, amount
 - Extra SG90 servos and LED strip (optional)
 - Read the Resources tab on each challenge page and add links to the plan
+- For Scope Check (11:45 Saturday): challenge name (the slides say "CLPS Lunar Mission Browser"), the rule on work done before the start, team lead. See `docs/event-day.md` section 7.
+- Does the Liftoff award require using AWS? Ask at the 12:50 workshop (`docs/event-day.md` section 6).
+- The repo is private: judges need a link they can open (`docs/event-day.md` submission checklist).

@@ -266,6 +266,8 @@ Total about 5–7 h on one printer.
 
 ## 9. Build order (parallel tracks, not website-first)
 
+> **Timing superseded (2026-11-14):** the real event schedule is in `event-day.md` section 5. The order of the tracks below still holds, but "Night: print" depends on the printer (the room closes at 11:30 PM and the Makerspace is open only 1 to 7 PM Saturday), and the fallback decision moves to 9:30 AM Sunday.
+
 The website and the hardware are built **in parallel**. They touch twice:
 
 1. **Day 1:** Angel sends Gustavo the skyline CSV. A placeholder profile is fine.
@@ -297,7 +299,7 @@ The website and the hardware are built **in parallel**. They touch twice:
 3. tiny firmware
 4. integration
 
-**Fallback rule:** if the hardware isn't working by Day 2 midday, demo the website alone and turn the model by hand.
+**Fallback rule:** if the hardware isn't working by **9:30 AM Sunday** (was "Day 2 midday", which is too late for the 1:30 PM cutoff), demo the website alone and turn the model by hand.
 
 **If only 1 day:** cut the Earth marker and the lamp-height slot. Keep the disc, wall, stepper and LED.
 
@@ -319,7 +321,7 @@ The website and the hardware are built **in parallel**. They touch twice:
 
 **Open questions:**
 
-- the exact Challenge 11 judging criteria and Resources tab contents
+- Resources tab contents (judging criteria now known: NASA's five, see `event-day.md` section 2)
 - demo site(s) and published coordinates
 - live Horizons calls vs. a cached dataset
 - which LOLA data product to use for skylines

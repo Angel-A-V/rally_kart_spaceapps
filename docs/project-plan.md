@@ -99,7 +99,7 @@ From the challenge text, ranked by importance. "Must" items are what we treat as
 - [ ] CAD models and drawings of all printed parts.
 - [ ] Print iteration log (v1, v2, v3 with photos and what changed).
 - [ ] Wiring schematic and a soldered perfboard circuit.
-- [ ] A 2 to 3 minute demo script.
+- [ ] An 8-minute demo script plus 3-minute Q&A prep (the panel format; outline in `event-day.md` section 4).
 
 ---
 
@@ -283,7 +283,7 @@ Keep all main code (ephemeris, web app, main firmware) with Angel and his agent 
 
 ## 6. Plan, checkpoints, and when to switch to the backup
 
-Event length is not stated in the files, so these are relative phases. Adjust to the real schedule.
+**Superseded by the real schedule in `event-day.md` section 5** (submission cutoff 1:30 PM Sunday, room closes 11:30 PM Saturday, Makerspace 1 to 7 PM Saturday only, hardware go/no-go 9:30 AM Sunday). The phases below are kept for reference.
 
 | Phase | Everyone | Angel | Gustavo | Darren |
 | --- | --- | --- | --- | --- |
@@ -402,6 +402,9 @@ The switch loses the ephemeris engine and the Sun ring and terrain ring. That is
 | Hardware breaks mid-demo | Software must work alone. Keep a screen-recorded backup demo. |
 | Team misunderstands the goal | Everyone reads sections 1 to 3 and can explain them in one minute. |
 | Scope creep | Build the MUST list first. Add SHOULD and COULD items only after it works. |
+| Missing the local cutoff (1:30 PM Sunday, not 11:59 PM) | Target submitting at 1:00 PM. Feature freeze at 10:30 AM Sunday. See `event-day.md`. |
+| Online judges (3 of 7) can't see the physical model | The website carries the pitch. Show the model on camera or in the backup video. |
+| Validity questions ("is the science sound?") | Do the Quickmap cross-check (#1), or state plainly that the sites are our picks from LOLA data, not official ones. |
 
 ---
 

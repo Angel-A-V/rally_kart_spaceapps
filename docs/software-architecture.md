@@ -226,6 +226,7 @@ The catch: the UNO Q sits on a home or venue network behind a router. A website 
 - **Safety and control:** a public page that can move motors needs protection. Minimum: the device (not the website) clamps every command to the allowed range, and hardware control sits behind a simple access check (for example Cloudflare Access, or a shared token) while the read-only app stays open.
 - Everything in the hardware contract stays the same: `SUN az el`, `EARTH az el`, `HOME`, `STATUS`.
 - Cloudflare is not needed for the analysis at all. It is only the delivery route.
+- **AWS S3 static hosting is an equal alternative** for option 1 (same `dist/` files, no code changes). It may matter for the AWS-sponsored Liftoff award. See `event-day.md` section 6.
 
 ---
 
