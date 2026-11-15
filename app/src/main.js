@@ -769,11 +769,7 @@ async function main() {
     });
     drawPlan();
     showPanel(panelHint()); // empty state: nothing chosen yet
-    if (globe) {
-      // Open on the whole Moon, then descend to the south pole: that is where this project looks.
-      globe.setView("moon", false);
-      setTimeout(() => globe.setView("pole"), 1200);
-    }
+    if (globe) globe.setView("moon", false); // frame the whole Moon in the space beside the panel
 
     // The two scenarios
     for (const id of ["a", "b"]) {
