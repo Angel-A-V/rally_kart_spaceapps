@@ -15,7 +15,8 @@ breaking anyone else's work.
   3. IAU feature names that appear as you zoom (Moon Trek style). **done** (`src/features.js`,
      `public/data/lunar_names.json` from `app/python/scripts/fetch_lunar_names.py`)
   4. Compare mode: "A vs B at a glance", "Same time" box, play/pause timeline (Gustavo's wireframe v2,
-     `docs/handoffs/gustavo-wireframe-v2.md`). *todo*
+     `docs/handoffs/gustavo-wireframe-v2.md`). **done** (`src/compare.js`, `src/timeline.js`; the
+     player and event ticks are on the analysis panel's slider and both compare cards)
   5. Polish: lighting/terminator toggle, phone layout, motion. *todo*
 - Update this list when you finish or start a phase.
 

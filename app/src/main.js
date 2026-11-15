@@ -1,6 +1,8 @@
 import "./style.css";
 import { loadChecks, loadCrosscheck, loadCustomPoint, loadLunarNames, loadSites, loadSiteAnalysis } from "./data.js";
 import { parseNames } from "./features.js";
+import { atAGlance } from "./compare.js";
+import { advance, playerHtml, ticksHtml } from "./timeline.js";
 import { accuracyNote, accuracyPanel } from "./accuracy.js";
 import { skyDiagram } from "./skyDiagram.js";
 import { numbersPanel } from "./numbersPanel.js";
@@ -59,6 +61,7 @@ function slotControls(letter, sites, siteId, last, index) {
       <select id="site-${id}">${siteOptions(sites, siteId)}</select>
       <label for="time-${id}">Time <output id="out-${id}"></output></label>
       <input type="range" id="time-${id}" min="0" max="${last}" value="${index}">
+      <div class="slider-extras"><div data-ticks="${id}" id="ticks-${id}"></div>${playerHtml(id)}</div>
       <p class="site-description" id="desc-${id}"></p>
     </div>`;
 }
@@ -199,6 +202,8 @@ function focusSky(analysis, rows, index) {
   return `
     <h4>The sky here <output id="focus-out">${row.time_utc} UTC</output></h4>
     <input type="range" id="focus-time" min="0" max="${rows.length - 1}" value="${index}" aria-label="Time">
+    <div data-ticks="focus">${ticksHtml(rows)}</div>
+    ${playerHtml("focus")}
     <div id="focus-view">${skyDiagram(analysis.skyline_deg, row)}
       <p class="focus-now"><span class="sun">Sun ${mark(row.sun_visible)}</span> · <span class="earth">Earth ${mark(row.earth_visible)}</span></p>
     </div>`;
@@ -356,6 +361,8 @@ function shell(sites, analyses, slots, plan, check, checks) {
       (30 days of hourly data).</p>
       ${legend()}
       ${settingsControls()}
+      <label class="same-time"><input type="checkbox" id="same-time"> Same time for A and B
+        <span class="sub">(one time control drives both cards)</span></label>
       <div class="cards">
         <section class="card">
           ${slotControls("A", sites, slots.a.site, last, slots.a.index)}
@@ -366,6 +373,8 @@ function shell(sites, analyses, slots, plan, check, checks) {
           <div id="view-b"></div>
         </section>
       </div>
+      <h3>A vs B at a glance</h3>
+      <div id="glance" class="table-wrap plain"></div>
       <h3>Which is better?</h3>
       <p class="verdict" id="compare-verdict" aria-live="polite"></p>
     </section>`;
@@ -390,7 +399,13 @@ function shell(sites, analyses, slots, plan, check, checks) {
 
 function drawSlot(id, slot, analyses) {
   const analysis = analyses[slot.site];
-  const row = rowsFor(analyses, slot.site)[slot.index]; // visible/next change follow the current rules
+  const rows = rowsFor(analyses, slot.site);
+  const row = rows[slot.index]; // visible/next change follow the current rules
+  const key = `${slot.site}|${view.settings.sunRule}|${view.settings.earthMarginDeg}`;
+  if (slot.ticksKey !== key) { // the ticks depend on the site and the rules, not on the time
+    document.querySelector(`#ticks-${id}`).innerHTML = ticksHtml(rows);
+    slot.ticksKey = key;
+  }
   document.querySelector(`#out-${id}`).textContent = `${row.time_utc} UTC`;
   document.querySelector(`#desc-${id}`).textContent = analysis.description;
   document.querySelector(`#view-${id}`).innerHTML = skyDiagram(analysis.skyline_deg, row) + numbersPanel(row);
@@ -407,6 +422,9 @@ function drawVerdict() {
     return { name, label: analyses[slot.site].label, rows, row: rows[slot.index] };
   };
   el.innerHTML = compareVerdict(side("A", slots.a), side("B", slots.b));
+  const year = (id) => view.sites?.find((s) => s.id === id)?.year;
+  document.querySelector("#glance").innerHTML = atAGlance(
+    { ...side("A", slots.a), year: year(slots.a.site) }, { ...side("B", slots.b), year: year(slots.b.site) });
 }
 
 async function main() {
@@ -428,6 +446,7 @@ async function main() {
     app.innerHTML = shell(sites, analyses, slots, plan, check, checks);
     view.slots = slots;
     view.analyses = analyses;
+    view.sites = sites;
 
     // Planning section
     const planHolder = document.querySelector("#plan-holder");
@@ -539,6 +558,7 @@ async function main() {
       plan.site = id;
       document.querySelector("#plan-site").value = id;
       focusState.index = Math.min(focusState.index, analyses[id].rows.length - 1);
+      if (players.focus) players.focus.playing = false; // its buttons are about to be replaced
       showPanel(siteInfo(site) + focusSky(analyses[id], rowsFor(analyses, id), focusState.index) +
         panelActions(id) + accuracyNote(check?.sites[id], site, checks));
       if (globe) {
@@ -622,15 +642,109 @@ async function main() {
         openPage(open.dataset.open);
       }
     });
-    panelEl.addEventListener("input", (e) => {
-      if (e.target.id !== "focus-time") return;
-      focusState.index = Number(e.target.value);
+    function drawFocus() {
       const rows = rowsFor(analyses, plan.site);
       const row = rows[focusState.index];
       const mark = (v) => (v ? "✓ up" : "✗ blocked");
-      document.querySelector("#focus-out").textContent = `${row.time_utc} UTC`;
+      const out = document.querySelector("#focus-out");
+      if (!out) return;
+      out.textContent = `${row.time_utc} UTC`;
       document.querySelector("#focus-view").innerHTML = skyDiagram(analyses[plan.site].skyline_deg, row) +
         `<p class="focus-now"><span class="sun">Sun ${mark(row.sun_visible)}</span> · <span class="earth">Earth ${mark(row.earth_visible)}</span></p>`;
+    }
+    panelEl.addEventListener("input", (e) => {
+      if (e.target.id !== "focus-time") return;
+      focusState.index = Number(e.target.value);
+      drawFocus();
+    });
+
+    // ----- time playback (play/pause, step, speed, loop) and the event ticks, for every slider -----
+    const players = {}; // id ("focus", "a", "b") -> { playing, speed, loop, carry }
+    const sameTime = () => document.querySelector("#same-time").checked;
+    const getIndex = (id) => (id === "focus" ? focusState.index : slots[id].index);
+    const lastIndex = (id) => rowsFor(analyses, id === "focus" ? plan.site : slots[id].site).length - 1;
+    function setIndex(id, i) {
+      if (id === "focus") {
+        focusState.index = i;
+        const el = document.querySelector("#focus-time");
+        if (el) el.value = i;
+        return drawFocus();
+      }
+      for (const key of id === "a" && sameTime() ? ["a", "b"] : [id]) {
+        slots[key].index = i;
+        document.querySelector(`#time-${key}`).value = i;
+        drawSlot(key, slots[key], analyses);
+      }
+    }
+    const playerState = (id) => (players[id] ||= { playing: false, speed: 6, loop: true, carry: 0 });
+    const showPlaying = (id) => {
+      const b = document.querySelector(`[data-player="${id}"] [data-act="play"]`);
+      if (!b) return;
+      const on = playerState(id).playing;
+      b.textContent = on ? "⏸" : "▶";
+      b.setAttribute("aria-pressed", String(on));
+      b.setAttribute("aria-label", on ? "Pause" : "Play");
+    };
+    let rafId = null;
+    let lastFrame = null;
+    function playFrame(now) {
+      const active = Object.entries(players).filter(([, p]) => p.playing);
+      if (!active.length) {
+        rafId = null;
+        lastFrame = null;
+        return;
+      }
+      const dt = lastFrame === null ? 0 : Math.min(250, now - lastFrame); // no big jump after a hidden tab
+      lastFrame = now;
+      for (const [id, p] of active) {
+        if (!document.querySelector(`[data-player="${id}"]`)) { // its panel was redrawn
+          p.playing = false;
+          continue;
+        }
+        const r = advance({ index: getIndex(id), carry: p.carry }, dt, p.speed, lastIndex(id), p.loop);
+        p.carry = r.carry;
+        if (r.index !== getIndex(id)) setIndex(id, r.index);
+        if (r.ended) {
+          p.playing = false;
+          showPlaying(id);
+        }
+      }
+      rafId = requestAnimationFrame(playFrame);
+    }
+    document.addEventListener("click", (e) => {
+      const tick = e.target.closest("[data-jump]");
+      if (tick) return setIndex(tick.closest("[data-ticks]").dataset.ticks, Number(tick.dataset.jump));
+      const btn = e.target.closest("[data-player] button[data-act]");
+      if (!btn) return;
+      const id = btn.closest("[data-player]").dataset.player;
+      const p = playerState(id);
+      const i = getIndex(id);
+      if (btn.dataset.act === "back") setIndex(id, Math.max(0, i - 1));
+      if (btn.dataset.act === "fwd") setIndex(id, Math.min(lastIndex(id), i + 1));
+      if (btn.dataset.act === "play") {
+        p.playing = !p.playing;
+        p.carry = 0;
+        if (p.playing && i >= lastIndex(id) && !p.loop) setIndex(id, 0);
+        showPlaying(id);
+        if (p.playing && rafId === null) rafId = requestAnimationFrame(playFrame);
+      }
+    });
+    document.addEventListener("change", (e) => {
+      const el = e.target.closest("[data-player] [data-act]");
+      if (!el) return;
+      const p = playerState(el.closest("[data-player]").dataset.player);
+      if (el.dataset.act === "speed") p.speed = Number(el.value);
+      if (el.dataset.act === "loop") p.loop = el.checked;
+    });
+    document.querySelector("#same-time").addEventListener("change", (e) => {
+      const on = e.target.checked;
+      document.querySelector("#time-b").disabled = on;
+      document.querySelector('[data-player="b"]').hidden = on;
+      if (on) {
+        playerState("b").playing = false;
+        showPlaying("b");
+        setIndex("a", slots.a.index);
+      }
     });
 
     // Search box: jump to a site by name.
@@ -659,10 +773,7 @@ async function main() {
         slots[id].site = e.target.value;
         drawSlot(id, slots[id], analyses);
       });
-      document.querySelector(`#time-${id}`).addEventListener("input", (e) => {
-        slots[id].index = Number(e.target.value);
-        drawSlot(id, slots[id], analyses);
-      });
+      document.querySelector(`#time-${id}`).addEventListener("input", (e) => setIndex(id, Number(e.target.value)));
       drawSlot(id, slots[id], analyses);
     }
 

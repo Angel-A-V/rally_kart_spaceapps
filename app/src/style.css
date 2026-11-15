@@ -321,6 +321,29 @@ button.primary:hover { filter: brightness(1.1); }
   font-size: 11px; color: rgba(232, 234, 237, 0.72); text-shadow: 0 0 3px #000, 0 0 2px #000; }
 .feature-label.big { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
 
+/* Time slider extras: event ticks and playback (UI phase 4) */
+.ticks { position: relative; height: 18px; margin: -4px 8px 2px; }  /* 8px = the slider thumb's inset */
+.tick { position: absolute; top: 0; width: 12px; height: 18px; margin-left: -6px; padding: 0; background: transparent; border: 0; cursor: pointer; }
+.tick::after { content: ""; position: absolute; left: 5px; top: 3px; width: 2px; height: 12px; border-radius: 1px; background: currentColor; opacity: 0.85; }
+.tick.sun { color: var(--sun); }
+.tick.earth { color: var(--earth); }
+.tick.sunset::after, .tick.earthset::after { opacity: 0.45; }
+.tick:hover::after, .tick:focus-visible::after { opacity: 1; width: 3px; }
+.player { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 8px; }
+.player button { width: 36px; height: 32px; padding: 0; background: var(--surface-2); border: 1px solid var(--glass-line); border-radius: 8px; cursor: pointer; }
+.player button[aria-pressed="true"] { background: var(--earth); border-color: var(--earth); }
+.player select { height: 32px; font: inherit; font-size: 0.85rem; color: var(--text); background: var(--surface-2); border: 1px solid var(--glass-line); border-radius: 8px; padding: 0 6px; }
+.player .loop { display: inline-flex; gap: 4px; align-items: center; font-size: 0.85rem; color: var(--text-2); }
+.slider-extras { grid-column: 1 / -1; }
+/* In the compare cards: labels above their controls, so the time fits and the ticks line up with the slider. */
+.sheet .cards .card-controls { grid-template-columns: 1fr; gap: 4px; }
+.sheet .cards .card-controls label { margin-top: 6px; }
+.sheet .cards .card-controls output { font-family: var(--mono); font-size: 0.82rem; }
+.same-time { display: flex; gap: 8px; align-items: baseline; margin: 4px 0 12px; font-weight: 600; }
+table.glance td { font-family: var(--mono); font-size: 0.85rem; }
+table.glance td.better { font-weight: 700; color: var(--yes); }
+table.glance thead th { text-align: left; }
+
 /* Right-click menu */
 .ctx-menu { position: fixed; z-index: 20; min-width: 200px; padding: 6px; display: grid; gap: 2px; background: var(--glass-strong); }
 .ctx-menu .ctx-where { margin: 4px 10px 6px; font-family: var(--mono); font-size: 0.78rem; color: var(--text-2); }
