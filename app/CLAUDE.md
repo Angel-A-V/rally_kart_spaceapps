@@ -100,6 +100,14 @@ bar at the top, the analysis panel's slider, both compare cards and the day/nigh
 it. Only exception: with "Same time for A and B" unticked, scenario B keeps its own time. Do not add another
 independent time slider.
 
+## The tabletop model link (issue #15)
+
+`src/model.js`. The board (UNO Q) serves its own page on port 7000; the site only opens
+`http://<board>:7000/?site=..&az=..&el=..[&cmd=EARTH]` in one reused tab (`window.open(url, "moon-model")`).
+The "Show on model" / "Earth on model" buttons exist only when the site was opened with `?model=<address>`
+(remembered in localStorage per browser and site address; `?model=off` forgets it). Only private IPs,
+`name.local` and localhost are accepted. Public visitors never see anything about the model.
+
 ## Globe API (`src/globe.js`)
 
 ```js

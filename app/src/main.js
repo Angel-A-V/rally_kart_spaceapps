@@ -2,6 +2,11 @@ import "./style.css";
 import { loadChecks, loadCrosscheck, loadCustomPoint, loadLunarNames, loadSites, loadSiteAnalysis } from "./data.js";
 import { parseNames } from "./features.js";
 import { sunDirection } from "./geo.js";
+import { loadModelAddress, modelUrl } from "./model.js";
+
+// The tabletop model's address, if this browser was opened with ?model=<board address> (model.js).
+// Null for everyone else, and then nothing about the model is shown.
+const modelAddress = loadModelAddress();
 import { atAGlance } from "./compare.js";
 import { advance, playerHtml, ticksHtml } from "./timeline.js";
 import { accuracyNote, accuracyPanel } from "./accuracy.js";
@@ -228,6 +233,8 @@ function panelActions(id) {
       <button type="button" data-open="compare" data-for="${id}">Compare with…</button>
       <button type="button" data-open="plan" data-for="${id}">Plan a mission here</button>
       <button type="button" data-open="table" data-for="${id}">Hourly table</button>
+      ${modelAddress ? `<button type="button" class="model-btn" data-model="SUN" title="Turn the tabletop model (${modelAddress}) to the Sun's direction at this site and time">Show on model</button>
+      <button type="button" class="model-btn" data-model="EARTH" title="Point the tabletop model at Earth's direction at this site and time">Earth on model</button>` : ""}
       ${id.startsWith("custom_") ? `<button type="button" class="remove-point" data-remove="${id}">Remove this point</button>` : ""}
     </div>`;
 }
@@ -647,6 +654,16 @@ async function main() {
       if (site && !site.matches("li[data-site]")) {
         selectSite(site.dataset.site, { fly: true });
         if (matchMedia("(max-width: 760px)").matches) closeSheet();
+        return;
+      }
+      const model = e.target.closest("[data-model]");
+      if (model && modelAddress) {
+        // The selected site at the clock's time, so the model matches the 3D view. One named tab is reused.
+        const body = model.dataset.model === "EARTH" ? "earth" : "sun";
+        const row = analyses[plan.site].rows[focusState.index];
+        window.open(modelUrl(modelAddress, {
+          site: analyses[plan.site].label, az: row[`${body}_az_deg`], el: row[`${body}_el_deg`], cmd: model.dataset.model,
+        }), "moon-model");
         return;
       }
       const analyse = e.target.closest("[data-analyse]");

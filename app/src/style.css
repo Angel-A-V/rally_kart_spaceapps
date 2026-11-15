@@ -366,6 +366,8 @@ table.glance thead th { text-align: left; }
 @media (max-width: 900px) { .clock .player select, .clock [data-act="back"], .clock [data-act="fwd"] { display: none; } }
 @media (max-width: 760px) { .clock output { display: none; } }
 
+.panel-actions .model-btn { border-color: var(--sun); }
+
 /* Right-click menu */
 .ctx-menu { position: fixed; z-index: 20; min-width: 200px; padding: 6px; display: grid; gap: 2px; background: var(--glass-strong); }
 .ctx-menu .ctx-where { margin: 4px 10px 6px; font-size: 0.78rem; color: var(--text-2); }
