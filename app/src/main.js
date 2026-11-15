@@ -13,7 +13,7 @@ import { accuracyNote, accuracyPanel } from "./accuracy.js";
 import { skyDiagram } from "./skyDiagram.js";
 import { numbersPanel } from "./numbersPanel.js";
 import { planPanel } from "./planPanel.js";
-import { siteInfo } from "./siteInfo.js";
+import { siteHead, siteYear } from "./siteInfo.js";
 import { infoTip } from "./ui/infoTip.js";
 import { icon } from "./ui/icons.js";
 import { makeWindow } from "./ui/windows.js";
@@ -542,6 +542,12 @@ async function main() {
 
     // ----- panels: the ☰ drawer, the sheet with the menu pages, the analysis panel, the context menu -----
     const panelEl = document.querySelector("#panel");
+    // Learn / Research switch in the analysis panel (Angel's Claude Design panel C). Stays as chosen.
+    panelEl.dataset.mode = "learn";
+    panelEl.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-mode-btn]");
+      if (b) panelEl.dataset.mode = b.dataset.modeBtn;
+    });
     const drawerEl = document.querySelector("#drawer");
     const sheetEl = document.querySelector("#sheet");
     const ctxEl = document.querySelector("#ctx");
@@ -666,7 +672,7 @@ async function main() {
       plan.site = id;
       document.querySelector("#plan-site").value = id;
       focusState.index = Math.min(focusState.index, analyses[id].rows.length - 1);
-      showPanel(siteInfo(site) + focusSky(analyses[id], rowsFor(analyses, id), focusState.index) +
+      showPanel(siteHead(site) + focusSky(analyses[id], rowsFor(analyses, id), focusState.index) + siteYear(site) +
         panelActions(id) + accuracyNote(check?.sites[id], site, checks));
       if (globe) {
         globe.select(id);
