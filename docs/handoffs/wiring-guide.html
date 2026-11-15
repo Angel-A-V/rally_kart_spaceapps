@@ -1,0 +1,418 @@
+<title>Lunar Model Wiring</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column, engineering-paper ground; the schematic is the hero, then a build sheet, rules, bench tests. */
+:root {
+  --bg: #f3f5f8; --paper: #ffffff; --grid: #e3e8ef; --fg: #1b2330; --muted: #5a6577; --line: #c9d1dc;
+  --accent: #2f5fa7;
+  --v5: #d1352b; --v33: #d9831a; --gnd: #2a313c; --gnd-text: #ffffff;
+  --sig-step: #2f6fd6; --sig-hall: #1f9a5b; --sig-ldr: #8a46c9; --sig-pot: #7b8594; --sig-servo: #c2410c;
+  --board: #e9eef5; --board-stroke: #8c99ab; --warn-bg: #fff4e5; --warn-fg: #7a4300;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141b; --paper: #161d27; --grid: #1f2834; --fg: #e4e9f0; --muted: #9aa6b8; --line: #2e3947;
+  --accent: #7fa8ea;
+  --v5: #ff6b5e; --v33: #f2a64a; --gnd: #c8d0dc; --gnd-text: #10151c;
+  --sig-step: #6aa2ff; --sig-hall: #4fcf8a; --sig-ldr: #b98aef; --sig-pot: #9aa6b8; --sig-servo: #ff9a5c;
+  --board: #1d2633; --board-stroke: #5d6b80; --warn-bg: #2b2112; --warn-fg: #f4c27d;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f141b; --paper: #161d27; --grid: #1f2834; --fg: #e4e9f0; --muted: #9aa6b8; --line: #2e3947;
+  --accent: #7fa8ea;
+  --v5: #ff6b5e; --v33: #f2a64a; --gnd: #c8d0dc; --gnd-text: #10151c;
+  --sig-step: #6aa2ff; --sig-hall: #4fcf8a; --sig-ldr: #b98aef; --sig-pot: #9aa6b8; --sig-servo: #ff9a5c;
+  --board: #1d2633; --board-stroke: #5d6b80; --warn-bg: #2b2112; --warn-fg: #f4c27d;
+  color-scheme: dark; }
+
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--font-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 36px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: 2rem; } h2 { font-size: 1.35rem; } h3 { font-size: 1.02rem; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font: 600 0.75rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+header { display: grid; gap: 10px; }
+.lede { color: var(--muted); }
+section { display: grid; gap: 14px; min-width: 0; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+.verify { font: 600 0.72rem/1 var(--font-mono); color: var(--warn-fg); background: var(--warn-bg); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+.sheet { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto;
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 20px 20px; }
+.sheet svg { display: block; min-width: 760px; width: 100%; height: auto; }
+svg text { font-family: var(--font-body); fill: var(--fg); }
+svg .mono { font-family: var(--font-mono); }
+svg .muted { fill: var(--muted); }
+svg .board { fill: var(--board); stroke: var(--board-stroke); stroke-width: 1.5; }
+svg .ghost { fill: none; stroke: var(--board-stroke); stroke-width: 1.5; stroke-dasharray: 6 5; }
+svg .w { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+svg .stub { fill: none; stroke: var(--board-stroke); stroke-width: 2; }
+svg .step { stroke: var(--sig-step); } svg .hall { stroke: var(--sig-hall); } svg .ldr { stroke: var(--sig-ldr); }
+svg .pot { stroke: var(--sig-pot); stroke-dasharray: 7 5; }
+svg .servo { stroke: var(--sig-servo); }
+svg .n5 { fill: var(--v5); } svg .n33 { fill: var(--v33); } svg .ng { fill: var(--gnd); }
+svg .nt { font: 600 11px var(--font-mono); fill: #fff; }
+svg .ngt { font: 600 11px var(--font-mono); fill: var(--gnd-text); }
+svg .dot { fill: var(--sig-ldr); }
+svg .part { fill: var(--paper); stroke: var(--fg); stroke-width: 1.6; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.85rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 22px; height: 4px; border-radius: 2px; display: inline-block; }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.9rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.72rem/1.2 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tbody tr:last-child td { border-bottom: 0; }
+td.pin { font-family: var(--font-mono); white-space: nowrap; }
+.chip { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+tr.group td { background: var(--bg); font: 600 0.78rem/1.2 var(--font-display); color: var(--fg); }
+
+.rules { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.rule { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.rule strong { font-family: var(--font-display); }
+.rule p { color: var(--muted); font-size: 0.9rem; }
+
+.tests { display: grid; gap: 12px; counter-reset: t; }
+.test { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 8px; min-width: 0; }
+.test-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.who { font: 600 0.72rem/1 var(--font-mono); color: var(--accent); border: 1px solid var(--accent); padding: 3px 7px; border-radius: 99px; }
+.test ol, .test ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.test .out { font-size: 0.9rem; color: var(--muted); }
+.test .out b { color: var(--fg); }
+ul.open { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+footer { color: var(--muted); font-size: 0.85rem; }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Shackleton rim model · electronics</span>
+    <h1>Lunar Model Wiring</h1>
+    <p class="lede">Everything electrical sits on the fixed base. One controller (the Arduino UNO Q) drives the disc stepper and the Earth arm servo, and reads two sensors. Both motors get their power from the power module through a soldered PCB protoboard, which carries one shared 5V line and one shared GND line. Every ground is joined. The Sun lamp is a battery keychain light, so it has no wires at all.</p>
+  </header>
+
+  <section aria-labelledby="h-diagram">
+    <h2 id="h-diagram">Wiring diagram</h2>
+    <div class="legend" aria-hidden="false">
+      <span><i class="sw" style="background:var(--v5)"></i>5 V (power module)</span>
+      <span><i class="sw" style="background:var(--v33)"></i>3.3 V (UNO Q)</span>
+      <span><i class="sw" style="background:var(--gnd)"></i>GND (all joined)</span>
+      <span><i class="sw" style="background:var(--sig-step)"></i>stepper signals</span>
+      <span><i class="sw" style="background:var(--sig-hall)"></i>home sensor</span>
+      <span><i class="sw" style="background:var(--sig-ldr)"></i>light sensor</span>
+      <span><i class="sw" style="background:var(--sig-servo)"></i>Earth arm servo</span>
+      <span><i class="sw" style="background:var(--sig-pot)"></i>optional knob</span>
+    </div>
+    <div class="sheet">
+      <svg viewBox="0 0 1000 810" role="img" aria-labelledby="svg-t svg-d">
+        <title id="svg-t">Wiring diagram for the lunar model</title>
+        <desc id="svg-d">UNO Q pins D8 to D11 go to ULN2003 IN1 to IN4; the ULN2003 drives the 28BYJ-48 stepper. Hall sensor output goes to D2. Photoresistor and 10 kilohm divider feed A2. Optional potentiometer feeds A3. SG90 servo signal goes to D6. The power module supplies 5 V through the protoboard's 5V line to the ULN2003, the Hall sensor and the servo. All grounds are joined on the protoboard's GND line.</desc>
+
+        <!-- UNO Q -->
+        <rect class="board" x="40" y="40" width="230" height="680" rx="10"/>
+        <text x="155" y="74" text-anchor="middle" style="font: 700 17px var(--font-display)">Arduino UNO Q</text>
+        <text x="155" y="94" text-anchor="middle" class="muted" style="font-size:12px">STM32 side · 3.3 V logic</text>
+        <text x="60" y="708" class="muted" style="font-size:11px">Own USB-C cable for power</text>
+
+        <g class="mono" style="font-size:13px">
+          <text x="258" y="134" text-anchor="end">D8</text>
+          <text x="258" y="164" text-anchor="end">D9</text>
+          <text x="258" y="194" text-anchor="end">D10</text>
+          <text x="258" y="224" text-anchor="end">D11</text>
+          <text x="258" y="324" text-anchor="end">D2</text>
+          <text x="258" y="414" text-anchor="end">A2</text>
+          <text x="258" y="514" text-anchor="end">A3</text>
+          <text x="258" y="564" text-anchor="end">3V3</text>
+          <text x="258" y="594" text-anchor="end">GND</text>
+          <text x="258" y="654" text-anchor="end">D6 ~</text>
+        </g>
+        <g class="muted" style="font-size:12px">
+          <text x="60" y="180">to stepper driver</text>
+          <text x="60" y="324">home sensor in</text>
+          <text x="60" y="414">light level in</text>
+          <text x="60" y="514">timeline knob in</text>
+          <text x="60" y="532">(optional)</text>
+          <text x="60" y="578">power for sensors</text>
+          <text x="60" y="654">Earth arm servo out</text>
+        </g>
+        <g class="stub">
+          <path d="M270 130H300M270 160H300M270 190H300M270 220H300M270 320H300M270 410H300M270 510H300M270 560H300M270 590H300M270 650H300"/>
+        </g>
+
+        <!-- stepper signal wires -->
+        <path class="w step" d="M300 130H380M300 160H380M300 190H380M300 220H380"/>
+
+        <!-- ULN2003 -->
+        <rect class="board" x="380" y="100" width="190" height="150" rx="8"/>
+        <g class="mono" style="font-size:12px">
+          <text x="392" y="134">IN1</text><text x="392" y="164">IN2</text>
+          <text x="392" y="194">IN3</text><text x="392" y="224">IN4</text>
+          <text x="430" y="118" text-anchor="middle">+</text>
+          <text x="520" y="118" text-anchor="middle">−</text>
+        </g>
+        <text x="505" y="170" text-anchor="middle" style="font: 700 14px var(--font-display)">ULN2003</text>
+        <text x="505" y="188" text-anchor="middle" class="muted" style="font-size:11px">driver board</text>
+        <text x="505" y="204" text-anchor="middle" class="muted" style="font-size:11px">LEDs A–D blink</text>
+        <path class="stub" d="M430 100V74M520 100V74"/>
+        <rect class="n5" x="403" y="52" width="54" height="20" rx="4"/><text class="nt" x="430" y="66" text-anchor="middle">5V</text>
+        <rect class="ng" x="493" y="52" width="54" height="20" rx="4"/><text class="ngt" x="520" y="66" text-anchor="middle">GND</text>
+
+        <!-- motor cable: the 28BYJ-48's real wire colours -->
+        <g fill="none" stroke-width="2.4">
+          <path d="M570 167H684" stroke="#2f6fd6"/>
+          <path d="M570 171H682" stroke="#e46aa6"/>
+          <path d="M570 175H680" stroke="#e8c21b"/>
+          <path d="M570 179H682" stroke="#ef8a2a"/>
+          <path d="M570 183H684" stroke="#d1352b"/>
+        </g>
+        <circle class="part" cx="740" cy="175" r="60"/>
+        <circle cx="740" cy="175" r="9" fill="var(--board-stroke)"/>
+        <text x="740" y="208" text-anchor="middle" class="mono" style="font-size:12px">M</text>
+        <text x="740" y="258" text-anchor="middle" style="font: 600 13px var(--font-display)">28BYJ-48 stepper (5 V)</text>
+        <text x="740" y="275" text-anchor="middle" class="muted" style="font-size:11px">15-tooth pinion → 90-tooth ring gear</text>
+        <text x="620" y="160" class="muted" style="font-size:10px">keyed plug</text>
+
+        <!-- Hall sensor -->
+        <path class="w hall" d="M300 320H380"/>
+        <rect class="board" x="380" y="292" width="190" height="72" rx="8"/>
+        <text x="392" y="324" class="mono" style="font-size:12px">OUT</text>
+        <text x="482" y="320" text-anchor="middle" style="font: 700 14px var(--font-display)">Hall sensor</text>
+        <text x="482" y="338" text-anchor="middle" class="muted" style="font-size:11px">home / azimuth 0</text>
+        <g class="mono" style="font-size:12px">
+          <text x="558" y="309" text-anchor="end">VCC</text>
+          <text x="558" y="353" text-anchor="end">GND</text>
+        </g>
+        <path class="stub" d="M570 305H600M570 349H600"/>
+        <rect class="n5" x="600" y="295" width="54" height="20" rx="4"/><text class="nt" x="627" y="309" text-anchor="middle">5V</text>
+        <rect class="ng" x="600" y="339" width="54" height="20" rx="4"/><text class="ngt" x="627" y="353" text-anchor="middle">GND</text>
+        <!-- magnet -->
+        <rect class="ghost" x="690" y="296" width="150" height="64" rx="8"/>
+        <rect x="705" y="316" width="22" height="24" rx="3" fill="var(--v5)"/>
+        <rect x="705" y="328" width="22" height="12" rx="0" fill="var(--sig-step)"/>
+        <text x="736" y="322" style="font: 600 12px var(--font-display)">Magnet</text>
+        <text x="736" y="338" class="muted" style="font-size:10.5px">in disc, north notch</text>
+        <text x="736" y="352" class="muted" style="font-size:10.5px">no wires · 2–5 mm gap</text>
+
+        <!-- photoresistor divider -->
+        <path class="w ldr" d="M300 410H420M420 410H450M520 410H560M420 410V455H450M520 455H560"/>
+        <circle class="dot" cx="420" cy="410" r="5"/>
+        <!-- LDR symbol -->
+        <rect class="part" x="450" y="400" width="70" height="20" rx="10"/>
+        <path d="M458 410c4-6 8 6 12 0s8 6 12 0 8 6 12 0 8 6 12 0" fill="none" stroke="var(--fg)" stroke-width="1.4"/>
+        <path d="M468 382l10 12M482 380l10 12" stroke="var(--v33)" stroke-width="1.8" fill="none"/>
+        <path d="M478 394l0-5M478 394l-5 0M492 392l0-5M492 392l-5 0" stroke="var(--v33)" stroke-width="1.8" fill="none"/>
+        <text x="530" y="396" style="font-size:11px" class="muted">photoresistor</text>
+        <!-- 10k resistor -->
+        <rect class="part" x="450" y="447" width="70" height="16" rx="2"/>
+        <text x="485" y="476" text-anchor="middle" class="mono" style="font-size:11px">10 kΩ</text>
+        <rect class="n33" x="560" y="400" width="54" height="20" rx="4"/><text class="nt" x="587" y="414" text-anchor="middle">3V3</text>
+        <rect class="ng" x="560" y="445" width="54" height="20" rx="4"/><text class="ngt" x="587" y="459" text-anchor="middle">GND</text>
+        <text x="640" y="414" style="font: 600 12px var(--font-display)">Light sensor</text>
+        <text x="640" y="430" class="muted" style="font-size:11px">fixed arm on the centre post,</text>
+        <text x="640" y="445" class="muted" style="font-size:11px">eye height 33 mm. 3.3 V only.</text>
+
+        <!-- optional pot -->
+        <path class="w pot" d="M300 510H485V528M450 540H430V575H560M520 540H560"/>
+        <rect class="part" x="450" y="532" width="70" height="16" rx="2" style="stroke-dasharray:4 3"/>
+        <path d="M480 522l5 8 5-8" fill="none" stroke="var(--sig-pot)" stroke-width="2"/>
+        <text x="485" y="502" text-anchor="middle" class="mono muted" style="font-size:11px">10 kΩ knob</text>
+        <rect class="n33" x="560" y="530" width="54" height="20" rx="4"/><text class="nt" x="587" y="544" text-anchor="middle">3V3</text>
+        <rect class="ng" x="560" y="565" width="54" height="20" rx="4"/><text class="ngt" x="587" y="579" text-anchor="middle">GND</text>
+
+        <!-- UNO power pins as nets -->
+        <rect class="n33" x="300" y="550" width="54" height="20" rx="4"/><text class="nt" x="327" y="564" text-anchor="middle">3V3</text>
+        <rect class="ng" x="300" y="580" width="54" height="20" rx="4"/><text class="ngt" x="327" y="594" text-anchor="middle">GND</text>
+
+        <!-- power module -->
+        <rect class="board" x="680" y="480" width="280" height="110" rx="8"/>
+        <text x="820" y="508" text-anchor="middle" style="font: 700 14px var(--font-display)">Power module → protoboard</text>
+        <text x="820" y="528" text-anchor="middle" class="muted" style="font-size:11px">Input: USB phone charger, 1 A min, 2 A preferred</text>
+        <text x="820" y="544" text-anchor="middle" class="muted" style="font-size:11px">Output jumper set to 5 V · switch on</text>
+        <g class="mono" style="font-size:12px">
+          <text x="760" y="582" text-anchor="middle">+5V</text>
+          <text x="860" y="582" text-anchor="middle">GND</text>
+        </g>
+        <path class="stub" d="M760 590V615M860 590V615"/>
+        <rect class="n5" x="733" y="615" width="54" height="20" rx="4"/><text class="nt" x="760" y="629" text-anchor="middle">5V</text>
+        <rect class="ng" x="833" y="615" width="54" height="20" rx="4"/><text class="ngt" x="860" y="629" text-anchor="middle">GND</text>
+
+        <!-- SG90 Earth arm servo (Darren) -->
+        <path class="w servo" d="M300 650H380"/>
+        <rect class="board" x="380" y="622" width="190" height="72" rx="8"/>
+        <text x="392" y="654" class="mono" style="font-size:12px">SIG</text>
+        <text x="482" y="652" text-anchor="middle" style="font: 700 14px var(--font-display)">SG90 servo</text>
+        <text x="482" y="670" text-anchor="middle" class="muted" style="font-size:11px">Earth pointer arm</text>
+        <g class="mono" style="font-size:12px">
+          <text x="558" y="637" text-anchor="end">VCC</text>
+          <text x="558" y="683" text-anchor="end">GND</text>
+        </g>
+        <path class="stub" d="M570 633H600M570 679H600"/>
+        <rect class="n5" x="600" y="623" width="54" height="20" rx="4"/><text class="nt" x="627" y="637" text-anchor="middle">5V</text>
+        <rect class="ng" x="600" y="669" width="54" height="20" rx="4"/><text class="ngt" x="627" y="683" text-anchor="middle">GND</text>
+        <text x="680" y="665" style="font: 600 12px var(--font-display)">orange = SIG · red = 5V · brown = GND</text>
+        <text x="680" y="681" class="muted" style="font-size:11px">470–1000 µF capacitor across 5V and GND</text>
+        <text x="680" y="696" class="muted" style="font-size:11px">beside the servo header, stripe (−) to GND</text>
+
+        <!-- not wired band -->
+        <line x1="40" y1="745" x2="960" y2="745" stroke="var(--line)" stroke-width="1"/>
+        <text x="40" y="775" style="font: 600 12px var(--font-display)">Not wired:</text>
+        <text x="118" y="775" class="muted" style="font-size:12px">Sun lamp = keychain light (SHENZHEN LIGHTFE E2), own battery, fixed on the lamp tower at 180° from the Hall sensor · Magnet in the disc</text>
+      </svg>
+    </div>
+    <p class="lede" style="font-size:0.9rem">Coloured tags are net labels: every tag with the same name is the same wire network. All <b>GND</b> tags are joined on the protoboard's GND line, with one wire from that line to a UNO Q GND pin. The <b>5V</b> tags are the protoboard's 5V line, fed by the power module only; nothing connects to the UNO Q's 5V pin.</p>
+  </section>
+
+  <section aria-labelledby="h-build">
+    <h2 id="h-build">Build sheet</h2>
+    <p class="lede">Wire it in this order. Each row is one connection. "5V line" and "GND line" are the soldered lines on the PCB protoboard.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>From</th><th>To</th><th>Why / notes</th></tr></thead>
+        <tbody>
+          <tr class="group"><td colspan="3">1 · Power</td></tr>
+          <tr><td class="pin">Phone charger (USB)</td><td class="pin">Power module USB input</td><td>Use USB, not the kit's 9 V battery: the motors drain a 9 V battery in minutes and heat the module's regulator. At least 1 A, 2 A preferred, since the stepper and servo share it.</td></tr>
+          <tr><td class="pin">Power module jumpers</td><td class="pin">Output used → 5 V</td><td>Set the unused output's jumper to OFF so a 3.3 V output can't get mixed up with the UNO Q's 3.3 V.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--v5)"></i>Module +5V</td><td class="pin">Protoboard 5V line</td><td>Feeds every 5 V part below.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--gnd)"></i>Module GND</td><td class="pin">Protoboard GND line</td><td>Every ground below meets here.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--gnd)"></i>Protoboard GND line</td><td class="pin">UNO Q GND</td><td><b>The shared ground.</b> One wire. Without it the driver and servo can't read the UNO Q's signals.</td></tr>
+          <tr><td class="pin">USB-C supply or laptop</td><td class="pin">UNO Q USB-C</td><td>The UNO Q runs from its own cable. Supply rating <span class="verify">verify</span></td></tr>
+
+          <tr class="group"><td colspan="3">2 · Stepper</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-step)"></i>UNO Q D8</td><td class="pin">ULN2003 IN1</td><td rowspan="4">The four coil signals. Same pins the Arduino kit example uses, so the kit's stepper sketch works for a first test.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-step)"></i>UNO Q D9</td><td class="pin">ULN2003 IN2</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-step)"></i>UNO Q D10</td><td class="pin">ULN2003 IN3</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-step)"></i>UNO Q D11</td><td class="pin">ULN2003 IN4</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--v5)"></i>Protoboard 5V line</td><td class="pin">ULN2003 +</td><td>Motor power. Never from a UNO Q pin.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--gnd)"></i>Protoboard GND line</td><td class="pin">ULN2003 −</td><td>Straight to the module's GND is the same point.</td></tr>
+          <tr><td class="pin">28BYJ-48 plug</td><td class="pin">ULN2003 socket</td><td>Keyed, fits one way. Keep the ULN2003's power jumper cap on.</td></tr>
+
+          <tr class="group"><td colspan="3">3 · Earth arm servo (Darren)</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-servo)"></i>UNO Q D6</td><td class="pin">SG90 orange (signal)</td><td>Needs a PWM pin: check the ~ mark beside 6 on the board <span class="verify">verify</span>. Backup pins D5, then D3. The firmware must use the same pin.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--v5)"></i>Protoboard 5V line</td><td class="pin">SG90 red</td><td>Through a 3-pin male header on the protoboard so the servo can be swapped (only one SG90 in the kit).</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--gnd)"></i>Protoboard GND line</td><td class="pin">SG90 brown</td><td>No extra UNO Q ground needed: the GND line already joins it.</td></tr>
+          <tr><td class="pin">470–1000 µF capacitor</td><td class="pin">5V line ↔ GND line</td><td>Beside the servo header. Stripe (−) leg to GND. Stops the servo jittering when the stepper runs.</td></tr>
+
+          <tr class="group"><td colspan="3">4 · Home sensor</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--v5)"></i>Protoboard 5V line</td><td class="pin">Hall VCC</td><td>The A3144 chip needs at least 4.5 V, so it goes on 5 V, not 3.3 V.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--gnd)"></i>GND</td><td class="pin">Hall GND</td><td></td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-hall)"></i>Hall OUT</td><td class="pin">UNO Q D2</td><td>Reads LOW when the magnet is over it. A bare A3144 chip needs a pull-up: the firmware turns on D2's built-in one, so no extra resistor. A KY-003 module has its own. D2 accepts 5 V per Arduino's docs <span class="verify">verify</span></td></tr>
+
+          <tr class="group"><td colspan="3">5 · Light sensor</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--v33)"></i>UNO Q 3V3</td><td class="pin">Photoresistor leg 1</td><td>3.3 V only. The UNO Q's analog input reads 0 to 3.3 V.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-ldr)"></i>Photoresistor leg 2</td><td class="pin">UNO Q A2</td><td>Brighter light → higher reading.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-ldr)"></i>Same row as A2</td><td class="pin">10 kΩ → GND</td><td>Brown-black-orange bands. Turns light into a voltage (a divider).</td></tr>
+
+          <tr class="group"><td colspan="3">6 · Optional timeline knob</td></tr>
+          <tr><td class="pin">Pot outer legs</td><td class="pin">3V3 and GND</td><td>Either way round; swapping them reverses the direction.</td></tr>
+          <tr><td class="pin"><i class="chip" style="background:var(--sig-pot)"></i>Pot middle leg</td><td class="pin">UNO Q A3</td><td>Only if Angel adds scrubbing. Skip for the first tests.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-rules">
+    <h2 id="h-rules">Four rules that protect the board</h2>
+    <div class="rules">
+      <div class="rule"><strong>Motor power comes from the module</strong><p>The stepper pulls about 240 mA and the servo spikes higher when it starts moving. A UNO Q pin can't supply that and can be damaged trying.</p></div>
+      <div class="rule"><strong>Join the grounds</strong><p>Two power sources, one ground. Without the GND jumper the signals have no reference and the motor twitches or does nothing.</p></div>
+      <div class="rule"><strong>Never join the two 5 V supplies</strong><p>Leave the UNO Q's 5V pin empty. Two supplies on one wire push current into each other.</p></div>
+      <div class="rule"><strong>Analog inputs stay at 3.3 V</strong><p>Power the photoresistor and knob from 3V3. Analog pins A0 and A1 can't take 5 V at all, so they're not used here.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-tests">
+    <h2 id="h-tests">Bench tests to start now</h2>
+    <p class="lede">Tests 1 to 4 need only a multimeter and the parts, no code and no UNO Q. Test 5 uses the spare ELEGOO UNO R3 and the kit's ready-made stepper example, so nobody writes code.</p>
+    <div class="tests">
+      <div class="test">
+        <div class="test-head"><h3>1 · Power module gives 5 V</h3><span class="who">Darren</span></div>
+        <ol>
+          <li>Connect the module's +5V and GND to the protoboard's 5V and GND lines. Plug in a USB phone charger.</li>
+          <li>Set the jumper for that output to 5 V and switch the module on (its LED lights).</li>
+          <li>Multimeter on DC volts: red probe on the 5V line, black on the GND line.</li>
+          <li>Switch to continuity (beep): the UNO Q GND pin, the servo's brown wire and the ULN2003 − should all beep against the GND line.</li>
+        </ol>
+        <p class="out">Pass: <b>4.8 to 5.2 V</b>, and every ground beeps. Note the voltage; it's the reference for every later test.</p>
+      </div>
+
+      <div class="test">
+        <div class="test-head"><h3>2 · Hall sensor sees the magnet, and how far away</h3><span class="who">Darren + Gustavo</span></div>
+        <ol>
+          <li>Hall VCC to the 5V line, GND to the GND line. If it's the bare 3-leg chip (A3144), add a 10 kΩ from OUT to 5 V for this test only, since there's no UNO Q pull-up yet. A KY-003 module doesn't need it.</li>
+          <li>Multimeter between OUT and GND. With no magnet it reads about 5 V.</li>
+          <li>Bring the magnet toward the sensor's printed face. When it switches, the reading drops near 0 V (a module's LED also lights).</li>
+          <li>Flip the magnet over. Only one face works with an A3144; <b>mark that face with a marker</b> before it's glued into the disc.</li>
+          <li>Measure with calipers the largest gap where it still switches reliably.</li>
+        </ol>
+        <p class="out">Gives Gustavo the magnet pocket orientation and depth, and Darren the sensor mount gap (target 2 to 5 mm). Send Angel the switching distance.</p>
+      </div>
+
+      <div class="test">
+        <div class="test-head"><h3>3 · Photoresistor sees the lamp and the wall's shadow</h3><span class="who">Darren</span></div>
+        <ol>
+          <li>Build the divider: one photoresistor leg to a 3.3 V source, the other leg to a 10 kΩ that goes to GND. For a bench test without the UNO Q, the module's other output set to 3.3 V works.</li>
+          <li>Multimeter between the photoresistor/10 kΩ junction and GND.</li>
+          <li>Read it three times: room light, keychain light shining on it from 120 to 150 mm away (the planned lamp distance), and with a card or the printed wall blocking the light.</li>
+        </ol>
+        <p class="out">Pass: lit and shadowed readings differ by <b>at least 0.5 V</b>. If not, try a 4.7 kΩ or 22 kΩ instead of 10 kΩ and tell Angel which works best.</p>
+      </div>
+
+      <div class="test">
+        <div class="test-head"><h3>4 · Keychain light is steady enough to be the Sun</h3><span class="who">Gustavo or Darren</span></div>
+        <ol>
+          <li>Pick the mode you'd use and leave it on for 15 minutes. Many keychain lights dim after a minute or two or switch off on a timer.</li>
+          <li>Check the beam: a small, hard light gives the sharpest shadow behind the terrain wall.</li>
+          <li>Measure the LED's diameter and body size for the lamp-tower holder, and how the button is reached when it's mounted.</li>
+          <li>Note how long a charge (or battery) lasts, so it's full for the demo.</li>
+        </ol>
+        <p class="out">Feeds Darren's lamp tower: the LED centre goes at the height in the lamp table in <code>cad/design_notes.md</code> (33 mm for a flat horizon).</p>
+      </div>
+
+      <div class="test">
+        <div class="test-head"><h3>5 · Stepper turns the disc through the gears</h3><span class="who">Darren + Angel</span></div>
+        <ol>
+          <li>Wire section 2 of the build sheet, but to the ELEGOO UNO R3 instead of the UNO Q (same pins D8 to D11). Keep the motor on the power module and join the grounds.</li>
+          <li>Angel loads the Arduino IDE's built-in stepper example (File → Examples → Stepper) with the pins set to 8, 10, 9, 11, in that order, which suits the 28BYJ-48.</li>
+          <li>The ULN2003's four LEDs blink in turn and the shaft turns. Then mount the pinion and check the ring gear doesn't skip.</li>
+          <li>Mark the disc and count motor turns for one disc turn: it should be 6.</li>
+        </ol>
+        <p class="out">Confirms the 6:1 ratio, the reversed direction and the mount's stiffness before the UNO Q is involved.</p>
+      </div>
+
+      <div class="test">
+        <div class="test-head"><h3>6 · Servo moves without hitting the stops</h3><span class="who">Darren + Angel</span></div>
+        <ol>
+          <li>Wire section 3 of the build sheet. <b>Take the arm off the horn first</b>: the IDE's Sweep example swings 0 to 180°, which would drive the arm into its hard stops.</li>
+          <li>Angel loads File → Examples → Servo → Sweep with the pin changed to 6. The bare horn should sweep smoothly.</li>
+          <li>Run the stepper test at the same time and watch the horn. If it twitches, add or enlarge the capacitor.</li>
+          <li>Put the arm back on at horizontal near mid-travel and give Angel the direction that raises it and where the hard stops sit.</li>
+        </ol>
+        <p class="out">Pass: smooth sweep on D6 with no jitter while the stepper runs. Arm limits for the firmware: <b>−52° to +48°</b>, stops a few degrees outside.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-open">
+    <h2 id="h-open">Still to confirm</h2>
+    <ul class="open">
+      <li><b>The three new parts.</b> Angel's handoff says he bought a Hall sensor and a magnet. The Amazon links couldn't be opened from here, so the exact Hall part (bare A3144 chip or KY-003 module), the magnet size and the third part are unconfirmed <span class="verify">verify</span>. Both Hall versions use the same three wires.</li>
+      <li><b>UNO Q pins.</b> Pin names follow the UNO header; that D2 takes 5 V and the ULN2003 switches reliably on 3.3 V signals both come from Arduino's UNO Q docs and common practice, and need a bench check <span class="verify">verify</span>.</li>
+      <li><b>Servo pin.</b> D6 assumes the UNO Q marks it PWM (~) like the UNO R3 <span class="verify">verify</span>. Angel's firmware still needs the servo and the <code>EARTH</code> command.</li>
+      <li><b>Lamp angle.</b> This guide puts the lamp 180° from the Hall sensor; <code>docs/handoffs/angel-to-hardware.md</code> says 0°. The firmware's home offset depends on which is right <span class="verify">verify</span>.</li>
+      <li><b>Charger rating.</b> At least 1 A, 2 A preferred, now that the servo shares the 5V line with the stepper <span class="verify">verify</span>.</li>
+      <li><b>Keychain light specs.</b> No datasheet found for the LIGHTFE E2, so test 4 is how we learn its runtime and modes.</li>
+      <li><b>Stretch parts</b> (LCD1602, buttons) are left off on purpose. They can be added later without changing anything above.</li>
+    </ul>
+  </section>
+
+  <footer>Nov 14, 2026 · Built from <code>docs/handoffs/angel-to-hardware.md</code>, <code>cad/design_notes.md</code> and <code>docs/hardware-inventory.md</code>. Pin choices are a proposal for Angel to approve; the firmware is his.<br>Original guide by Gustavo. Updated Nov 15, 2026 by Darren: SG90 Earth arm on D6, PCB protoboard 5V and GND lines, servo capacitor, servo bench test. Full pin list: <code>docs/handoffs/wiring.md</code>.</footer>
+</div>
+
