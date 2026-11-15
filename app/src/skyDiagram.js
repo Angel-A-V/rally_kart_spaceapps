@@ -55,14 +55,14 @@ function gridAndAxes(sc) {
     const anchor = az === 0 ? "start" : az === 360 ? "end" : "middle";
     out += `<text class="compass" x="${sc.x(az)}" y="${H - M.bottom + 19}" text-anchor="${anchor}">${name}</text>`;
   }
-  out += `<text class="axis-title" x="${M.left + PLOT_W / 2}" y="${H - 4}" text-anchor="middle">Which way you are facing, all the way round</text>`;
-  out += `<text class="axis-title" x="12" y="${M.top + PLOT_H / 2}" text-anchor="middle" transform="rotate(-90 12 ${M.top + PLOT_H / 2})">Height in the sky</text>`;
+  out += `<text class="axis-title" x="${M.left + PLOT_W / 2}" y="${H - 4}" text-anchor="middle">Compass direction (azimuth)</text>`;
+  out += `<text class="axis-title" x="12" y="${M.top + PLOT_H / 2}" text-anchor="middle" transform="rotate(-90 12 ${M.top + PLOT_H / 2})">Angle above horizon</text>`;
   return out;
 }
 
 // Dark sky with a sprinkle of stars (fixed positions, so they do not jump while time plays).
-// The terrain is drawn on top, so stars only show above the skyline.
-function sky(sc) {
+// The terrain is drawn on top, so stars only show above the skyline. (Darren's UI pass, cf166e9.)
+function sky() {
   let out = `<rect class="sky-bg" x="${M.left}" y="${M.top}" width="${PLOT_W}" height="${PLOT_H}" rx="4"/>`;
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -131,7 +131,7 @@ export function skyDiagram(skyline, row) {
     `Earth at azimuth ${row.earth_az_deg.toFixed(0)} degrees, ${row.earth_visible ? "above" : "below"} the skyline.`;
   return (
     `<svg class="sky" viewBox="0 0 ${W} ${H}" role="img" aria-label="${summary}">` +
-    sky(sc) +
+    sky() +
     gridAndAxes(sc) +
     terrain(sc, skyline) +
     labels(sc, skyline) +

@@ -1,6 +1,7 @@
 // The small "i" button that opens a plain-English explanation. Pure function: text in, HTML out.
 // Uses the browser's built-in popover: click to open, click outside or press Esc to close,
 // no page code needed. The explanation sits in the middle of the screen, above everything.
+// (From Darren's UI pass, cf166e9.)
 
 let counter = 0;
 

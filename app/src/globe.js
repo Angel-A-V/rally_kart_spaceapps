@@ -60,7 +60,7 @@ function loadSurface(texture, canvas, layer = "photo", isCurrent = () => true) {
 
 // Background stars. Each has its own brightness, size and twinkle rhythm; the twinkle runs on the
 // graphics card (one number, uTime, changes per frame), so it costs nothing on the page.
-// With reduced motion, uTime stays at 0 and the stars hold still.
+// With reduced motion, uTime stays at 0 and the stars hold still. (Darren's UI pass, cf166e9.)
 function makeStars() {
   const positions = [];
   const phase = [];
@@ -91,7 +91,6 @@ function makeStars() {
       uniform float uTime; uniform float uPixelRatio;
       varying float vAlpha;
       void main() {
-        // gentle shimmer, plus a rarer deeper dip so a few stars visibly flicker
         float tw = 0.75 + 0.25 * sin(uTime * speed + phase);
         tw *= 0.85 + 0.15 * sin(uTime * speed * 2.7 + phase * 3.1);
         vAlpha = base * tw;
@@ -227,6 +226,7 @@ export function createGlobe(container, sites, handlers = {}) {
 
   // Site markers: a small dot to see, and a bigger invisible ball around it that is easier to click.
   const markers = [];
+  let clean = false; // "Hide overlays": markers and pins hidden, only the Moon, Sun and Earth drawn
   const hitTargets = [];
   const labelLayer = document.createElement("div");
   labelLayer.className = "globe-labels";
@@ -371,40 +371,147 @@ export function createGlobe(container, sites, handlers = {}) {
     }
     u.shadows.value = on && u.heightMap.value ? 1 : 0;
   };
-  // The Sun itself, far off in the direction that lights the Moon. White, as it looks from space
-  // (no air to scatter the blue out). Its core is drawn at the Sun's real apparent size from the Moon
-  // (about 0.53 degrees across), inside a soft glare; the Moon hides it when it is behind.
-  const SUN_DIST = 55; // inside the star sphere (60), so the Sun sits in front of the stars
-  const sun = (() => {
+  // The Sun and Earth as seen from the Moon, in their real directions at the chosen time (NASA JPL
+  // Horizons az/el for the selected site, turned into Moon-fixed directions by geo.js sunDirection).
+  // Both are drawn at their true apparent size from the Moon: Sun about 0.53 deg across, Earth about 1.9 deg.
+  // Positions are set in setSun / setEarth; the Moon hides either one when it is in front.
+  const SKY_DIST = 50; // inside the star sphere (60)
+  const sunBody = (() => {
     const c = document.createElement("canvas");
-    c.width = c.height = 256;
+    c.width = c.height = 512;
     const g = c.getContext("2d");
-    const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    const disc = 0.05; // disc radius as a share of the sprite's half-width
+    const grad = g.createRadialGradient(256, 256, 0, 256, 256, 256);
     grad.addColorStop(0, "rgba(255,255,255,1)");
-    grad.addColorStop(0.085, "rgba(255,255,255,1)");   // the disc: 0.085 of the half-width
-    grad.addColorStop(0.11, "rgba(255,252,245,0.55)");
-    grad.addColorStop(0.25, "rgba(255,248,235,0.12)");
-    grad.addColorStop(1, "rgba(255,248,235,0)");
+    grad.addColorStop(disc * 0.8, "rgba(255,253,248,1)");
+    grad.addColorStop(disc, "rgba(255,246,228,0.95)");   // slightly darker limb
+    grad.addColorStop(disc * 1.5, "rgba(255,240,215,0.45)");
+    grad.addColorStop(disc * 3, "rgba(255,236,205,0.16)");
+    grad.addColorStop(0.45, "rgba(255,232,200,0.04)");
+    grad.addColorStop(1, "rgba(255,232,200,0)");
     g.fillStyle = grad;
-    g.fillRect(0, 0, 256, 256);
+    g.fillRect(0, 0, 512, 512);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-    // disc radius = SUN_DIST * tan(0.265 deg); the sprite is that / 0.085 wide on each side
-    const half = (SUN_DIST * Math.tan((0.265 * Math.PI) / 180)) / 0.085;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    const half = (SKY_DIST * Math.tan((0.2666 * Math.PI) / 180)) / disc;
     s.scale.set(half * 2, half * 2, 1);
     s.visible = false;
     return s;
   })();
-  scene.add(sun);
+  scene.add(sunBody);
+
+  // Earth: oceans, land and cloud bands painted once, then lit from the real Sun direction, so its
+  // phase (full, half, crescent) matches what an astronaut at the site would see.
+  const earthBody = (() => {
+    const c = document.createElement("canvas");
+    c.width = 512;
+    c.height = 256;
+    const g = c.getContext("2d");
+    g.fillStyle = "#1b4a8a";
+    g.fillRect(0, 0, 512, 256);
+    let seed = 11;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const blob = (color, n, rMin, rMax, yMin, yMax) => {
+      g.fillStyle = color;
+      for (let i = 0; i < n; i++) {
+        const x = rand() * 512;
+        const y = yMin + rand() * (yMax - yMin);
+        const r = rMin + rand() * (rMax - rMin);
+        g.beginPath();
+        g.ellipse(x, y, r * (1.2 + rand()), r, rand() * Math.PI, 0, Math.PI * 2);
+        g.fill();
+      }
+    };
+    blob("#4f6b3a", 26, 8, 26, 50, 200);                 // land
+    blob("#8a7a55", 10, 6, 16, 80, 170);                 // dry land
+    blob("rgba(255,255,255,0.55)", 70, 4, 18, 20, 236);  // clouds
+    g.fillStyle = "rgba(240,245,255,0.95)";              // ice caps
+    g.fillRect(0, 0, 512, 14);
+    g.fillRect(0, 242, 512, 14);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.ShaderMaterial({
+      uniforms: { map: { value: tex }, sunDir: { value: new THREE.Vector3(1, 0, 0) } },
+      vertexShader: `
+        varying vec2 vUv; varying vec3 vNormal; varying vec3 vView;
+        void main() {
+          vUv = uv;
+          vNormal = normalize(mat3(modelMatrix) * normal);
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vView = normalize(cameraPosition - wp.xyz);
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+      fragmentShader: `
+        uniform sampler2D map; uniform vec3 sunDir;
+        varying vec2 vUv; varying vec3 vNormal; varying vec3 vView;
+        void main() {
+          float lit = smoothstep(-0.05, 0.2, dot(vNormal, sunDir));
+          vec3 day = texture2D(map, vUv).rgb;
+          float rim = pow(1.0 - max(dot(vNormal, vView), 0.0), 3.0);
+          vec3 col = day * lit + vec3(0.35, 0.6, 1.0) * rim * lit * 0.8;
+          gl_FragColor = vec4(col + day * 0.03, 1.0);   // a hint of the night side so the disc reads
+        }`,
+    });
+    const r = SKY_DIST * Math.tan((0.95 * Math.PI) / 180);
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 32), material);
+    mesh.visible = false;
+    return mesh;
+  })();
+  scene.add(earthBody);
+
+  // Small names next to the Sun and Earth, hidden when the Moon is in front of them.
+  const bodyLabel = (text, cls) => {
+    const el = document.createElement("div");
+    el.className = `body-label ${cls}`;
+    el.textContent = text;
+    el.style.display = "none";
+    labelLayer.appendChild(el);
+    return el;
+  };
+  const sunLabel = bodyLabel("Sun", "sun");
+  const earthLabel = bodyLabel("Earth", "earth");
+  const behindMoon = (p) => {
+    // Does the line from the camera to p pass through the Moon (radius 1 at the origin)?
+    const o = camera.position;
+    const d = p.clone().sub(o);
+    const len = d.length();
+    d.divideScalar(len);
+    const b = o.dot(d);
+    const disc = b * b - (o.lengthSq() - 1);
+    if (disc < 0) return false;
+    const t = -b - Math.sqrt(disc);
+    return t > 0 && t < len;
+  };
+  const placeBodyLabel = (el, body, dy) => {
+    if (!body.visible || behindMoon(body.position)) {
+      el.style.display = "none";
+      return;
+    }
+    const p = body.position.clone().project(camera);
+    if (p.z > 1) {
+      el.style.display = "none";
+      return;
+    }
+    el.style.display = "";
+    el.style.left = `${((p.x + 1) / 2) * width()}px`;
+    el.style.top = `${((1 - p.y) / 2) * height() + dy}px`;
+  };
 
   const setSun = (dir) => {
     night.visible = Boolean(dir);
-    sun.visible = Boolean(dir);
+    sunBody.visible = Boolean(dir);
     if (dir) {
       night.material.uniforms.sunDir.value.set(...dir).normalize();
-      sun.position.copy(night.material.uniforms.sunDir.value).multiplyScalar(SUN_DIST);
+      sunBody.position.copy(night.material.uniforms.sunDir.value).multiplyScalar(SKY_DIST);
+      earthBody.material.uniforms.sunDir.value.copy(night.material.uniforms.sunDir.value);
     }
+  };
+  const setEarth = (dir) => {
+    earthBody.visible = Boolean(dir);
+    if (dir) earthBody.position.set(...dir).normalize().multiplyScalar(SKY_DIST);
   };
   const setPin = (lat, lon) => {
     if (lat === null || lat === undefined) {
@@ -606,7 +713,7 @@ export function createGlobe(container, sites, handlers = {}) {
       m.hit.scale.setScalar(scale);
       toCamera.copy(camera.position).sub(m.position);
       const facing = toCamera.dot(m.position) > 0; // false when the site is on the far side
-      m.dot.visible = facing;
+      m.dot.visible = facing && !clean;
       m.dot.quaternion.copy(camera.quaternion);     // face the viewer
       projected.copy(m.position).project(camera);
       const x = ((projected.x + 1) / 2) * width();
@@ -645,8 +752,14 @@ export function createGlobe(container, sites, handlers = {}) {
       el.style.top = `${y}px`;
     }
     for (let i = used; i < featureLabels.length; i++) featureLabels[i].style.display = "none";
+    placeBodyLabel(sunLabel, sunBody, 18);
+    placeBodyLabel(earthLabel, earthBody, 22);
     if (!reducedMotion()) stars.material.uniforms.uTime.value = performance.now() / 1000;
+    // "Hide overlays": the pin and the working-on-it dot sit out this frame, then get their state back.
+    const keep = clean ? [pin.visible, pendingDot.visible] : null;
+    if (clean) pin.visible = pendingDot.visible = false;
     renderer.render(scene, camera);
+    if (keep) [pin.visible, pendingDot.visible] = keep;
     requestAnimationFrame(frame);
   };
   frame();
@@ -671,25 +784,7 @@ export function createGlobe(container, sites, handlers = {}) {
     if (selectedId === siteId) selectedId = null;
   };
 
-  // Where the Moon's disc is on screen, in pixels: { x, y, r }. Used to keep shooting stars behind it.
-  const moonCircle = () => {
-    const d = camera.position.length();
-    const dir = camera.position.clone().normalize();
-    const up = camera.up.clone().sub(dir.clone().multiplyScalar(camera.up.dot(dir)));
-    if (up.lengthSq() < 1e-6) up.set(1, 0, 0).sub(dir.clone().multiplyScalar(dir.x));
-    up.normalize();
-    // The visible edge of a sphere of radius 1 seen from distance d is a circle of radius sqrt(1 - 1/d²)
-    // centred 1/d towards the camera.
-    const c = dir.clone().multiplyScalar(1 / d);
-    const edge = c.clone().add(up.multiplyScalar(Math.sqrt(Math.max(0, 1 - 1 / (d * d)))));
-    const toPx = (v) => {
-      const p = v.clone().project(camera);
-      return [((p.x + 1) / 2) * width(), ((1 - p.y) / 2) * height()];
-    };
-    const [x, y] = toPx(c);
-    const [ex, ey] = toPx(edge);
-    return { x, y, r: Math.hypot(ex - x, ey - y) };
-  };
+  const setClean = (on) => { clean = Boolean(on); };
 
-  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setShadows, setLayer, addSite, removeSite, markPending, moonCircle };
+  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setEarth, setShadows, setLayer, addSite, removeSite, markPending, setClean };
 }
