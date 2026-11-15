@@ -133,6 +133,37 @@ class Cache(unittest.TestCase):
             cp.cached_build(0.674, 23.473, cache_dir=d, map_now="LDEM_128", fetch=fake_fetch(calls), skyline_fn=flat)
             self.assertGreater(len(calls), n)     # the whole-Moon map is there now: built again
 
+    def test_a_damaged_cache_file_is_rebuilt(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, cp.point_id(-89.5, 200.0) + ".json")
+            with open(path, "w") as f:
+                f.write('{"cache_version": 2, "res')   # cut off half-way
+            out = cp.cached_build(-89.5, 200.0, cache_dir=d, fetch=fake_fetch(calls), skyline_fn=flat)
+            self.assertTrue(calls)                       # rebuilt instead of crashing
+            self.assertEqual(out["site"]["id"], cp.point_id(-89.5, 200.0))
+            with open(path) as f:
+                self.assertEqual(json.load(f)["cache_version"], cp.CACHE_VERSION)
+
+    def test_two_requests_at_once_for_the_same_point(self):
+        import threading
+        errors = []
+
+        def ask(d):
+            try:
+                cp.cached_build(-89.5, 200.0, cache_dir=d, fetch=fake_fetch([]), skyline_fn=flat)
+            except Exception as e:  # noqa: BLE001 - the test records any failure
+                errors.append(e)
+
+        with tempfile.TemporaryDirectory() as d:
+            threads = [threading.Thread(target=ask, args=(d,)) for _ in range(8)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            self.assertEqual(errors, [])
+            self.assertEqual([n for n in os.listdir(d) if n.endswith(".tmp")], [])  # no leftovers
+
 
 class Routes(unittest.TestCase):
     @classmethod

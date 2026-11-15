@@ -1,0 +1,407 @@
+{
+ "source": "https://pgda.gsfc.nasa.gov/products/69",
+ "reference": "Mazarico, E., et al. (2011), Illumination conditions of the lunar polar regions using LOLA topography, Icarus 211, 1066-1081",
+ "method": "Our one-year (2026-27) percentages against NASA GSFC's 18.6-year average Sun and Earth visibility maps (LOLA, 60 m per pixel). Both count the Sun or Earth as visible when any part of its disc shows. 'Agrees' = within 5 percentage points at the site; 'agrees within 60 m' = NASA's value matches ours only somewhere within one 60 m pixel, so the answer depends on landing within about 60 m of the point.",
+ "agree_points": 5.0,
+ "summary": {
+  "sites": 13,
+  "sun_mean_diff": 2.1,
+  "earth_mean_diff": 2.0,
+  "sun_mean_abs_diff": 3.7,
+  "earth_mean_abs_diff": 2.4
+ },
+ "sites": {
+  "shackleton_rim": {
+   "pole": "south",
+   "ours": {
+    "sun": 84.0,
+    "earth": 54.1
+   },
+   "nasa": {
+    "sun": {
+     "at": 77.6,
+     "min": 6.3,
+     "max": 85.2
+    },
+    "earth": {
+     "at": 52.7,
+     "min": 29.3,
+     "max": 55.0
+    }
+   },
+   "diff": {
+    "sun": 6.4,
+    "earth": 1.4
+   },
+   "verdict": {
+    "sun": "agrees_within_60m",
+    "earth": "agrees"
+   }
+  },
+  "shackleton": {
+   "pole": "south",
+   "ours": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "nasa": {
+    "sun": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    },
+    "earth": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    }
+   },
+   "diff": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees"
+   }
+  },
+  "de_gerlache": {
+   "pole": "south",
+   "ours": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "nasa": {
+    "sun": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    },
+    "earth": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    }
+   },
+   "diff": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees"
+   }
+  },
+  "haworth": {
+   "pole": "south",
+   "ours": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "nasa": {
+    "sun": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    },
+    "earth": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    }
+   },
+   "diff": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees"
+   }
+  },
+  "nobile": {
+   "pole": "south",
+   "ours": {
+    "sun": 37.3,
+    "earth": 25.5
+   },
+   "nasa": {
+    "sun": {
+     "at": 35.2,
+     "min": 35.1,
+     "max": 35.2
+    },
+    "earth": {
+     "at": 28.3,
+     "min": 28.2,
+     "max": 28.4
+    }
+   },
+   "diff": {
+    "sun": 2.1,
+    "earth": -2.8
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees"
+   }
+  },
+  "mons_mouton": {
+   "pole": "south",
+   "ours": {
+    "sun": 48.6,
+    "earth": 100.0
+   },
+   "nasa": {
+    "sun": {
+     "at": 46.3,
+     "min": 43.5,
+     "max": 49.4
+    },
+    "earth": {
+     "at": 100.0,
+     "min": 100.0,
+     "max": 100.0
+    }
+   },
+   "diff": {
+    "sun": 2.3,
+    "earth": 0.0
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees"
+   }
+  },
+  "cabeus": {
+   "pole": "south",
+   "ours": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "nasa": {
+    "sun": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    },
+    "earth": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.7
+    }
+   },
+   "diff": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees"
+   }
+  },
+  "peary": {
+   "pole": "north",
+   "ours": {
+    "sun": 21.4,
+    "earth": 50.4
+   },
+   "nasa": {
+    "sun": {
+     "at": 10.2,
+     "min": 0.0,
+     "max": 26.3
+    },
+    "earth": {
+     "at": 40.0,
+     "min": 0.0,
+     "max": 49.1
+    }
+   },
+   "diff": {
+    "sun": 11.2,
+    "earth": 10.4
+   },
+   "verdict": {
+    "sun": "agrees_within_60m",
+    "earth": "agrees_within_60m"
+   }
+  },
+  "hermite": {
+   "pole": "north",
+   "ours": {
+    "sun": 18.1,
+    "earth": 27.3
+   },
+   "nasa": {
+    "sun": {
+     "at": 8.6,
+     "min": 2.0,
+     "max": 28.7
+    },
+    "earth": {
+     "at": 17.7,
+     "min": 0.0,
+     "max": 38.9
+    }
+   },
+   "diff": {
+    "sun": 9.5,
+    "earth": 9.6
+   },
+   "verdict": {
+    "sun": "agrees_within_60m",
+    "earth": "agrees_within_60m"
+   }
+  },
+  "whipple": {
+   "pole": "north",
+   "ours": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "nasa": {
+    "sun": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    },
+    "earth": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    }
+   },
+   "diff": {
+    "sun": 0.0,
+    "earth": 0.0
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees"
+   }
+  },
+  "rozhdestvenskiy": {
+   "pole": "north",
+   "ours": {
+    "sun": 17.1,
+    "earth": 0.0
+   },
+   "nasa": {
+    "sun": {
+     "at": 27.4,
+     "min": 23.8,
+     "max": 27.8
+    },
+    "earth": {
+     "at": 0.0,
+     "min": 0.0,
+     "max": 0.0
+    }
+   },
+   "diff": {
+    "sun": -10.3,
+    "earth": 0.0
+   },
+   "verdict": {
+    "sun": "differs",
+    "earth": "agrees"
+   }
+  },
+  "byrd": {
+   "pole": "north",
+   "ours": {
+    "sun": 21.1,
+    "earth": 61.2
+   },
+   "nasa": {
+    "sun": {
+     "at": 16.1,
+     "min": 6.8,
+     "max": 28.1
+    },
+    "earth": {
+     "at": 55.8,
+     "min": 48.8,
+     "max": 63.1
+    }
+   },
+   "diff": {
+    "sun": 5.0,
+    "earth": 5.4
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees_within_60m"
+   }
+  },
+  "im_2": {
+   "pole": "south",
+   "ours": {
+    "sun": 46.8,
+    "earth": 93.8
+   },
+   "nasa": {
+    "sun": {
+     "at": 46.0,
+     "min": 40.3,
+     "max": 46.9
+    },
+    "earth": {
+     "at": 92.3,
+     "min": 79.5,
+     "max": 93.1
+    }
+   },
+   "diff": {
+    "sun": 0.8,
+    "earth": 1.5
+   },
+   "verdict": {
+    "sun": "agrees",
+    "earth": "agrees"
+   }
+  }
+ },
+ "model_site_neighbourhood": {
+  "site": "shackleton_rim",
+  "pixel_m": 60.0,
+  "sun_pct": [
+   [
+    68.0,
+    67.0,
+    85.0,
+    54.0,
+    45.0
+   ],
+   [
+    68.0,
+    43.0,
+    68.0,
+    44.0,
+    47.0
+   ],
+   [
+    0.0,
+    6.0,
+    85.0,
+    51.0,
+    49.0
+   ],
+   [
+    47.0,
+    56.0,
+    80.0,
+    54.0,
+    50.0
+   ],
+   [
+    67.0,
+    62.0,
+    73.0,
+    52.0,
+    44.0
+   ]
+  ]
+ }
+}

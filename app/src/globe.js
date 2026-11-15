@@ -138,13 +138,14 @@ export function createGlobe(container, sites, onSelect, onPick = null) {
   const views = {
     // Hovering over the south pole region, where all the sites are.
     pole: () => camera.position.set(...latLonToXyz(-82, 20, 1.5)),
+    north: () => camera.position.set(...latLonToXyz(82, 20, 1.5)),
     moon: () => camera.position.set(...latLonToXyz(-25, 20, 3.4)),
   };
   const setView = (name) => {
     views[name]();
     controls.update();
   };
-  setView("moon"); // the sites now span the whole Moon (Apollo sites and the south pole)
+  setView("moon"); // the sites span the whole Moon (Apollo sites and both poles)
 
   let selectedId = null;
   const select = (siteId) => {

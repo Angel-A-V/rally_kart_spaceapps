@@ -16,6 +16,7 @@ import json
 import math
 import os
 import sys
+import tempfile
 
 PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # app/python
 sys.path.insert(0, PY_DIR)
@@ -181,17 +182,30 @@ def cached_build(lat, lon, cache_dir=CACHE_DIR, map_now=None, **kwargs):
     """
     lat, lon = normalise(lat, lon)
     path = os.path.join(cache_dir, point_id(lat, lon) + ".json")
+    saved = None
     if os.path.exists(path):
-        with open(path) as f:
-            saved = json.load(f)
+        try:
+            with open(path) as f:
+                saved = json.load(f)
+        except (OSError, ValueError):
+            saved = None   # a damaged file is treated as missing and rebuilt
+    if saved is not None:
         if map_now is None and "skyline_fn" not in kwargs:
             map_now = terrain_plan(lat, *_terrain_files_present())
-        if saved.get("cache_version") == CACHE_VERSION and _map_used(saved["result"]) == map_now:
+        if (saved.get("cache_version") == CACHE_VERSION and "result" in saved
+                and _map_used(saved["result"]) == map_now):
             return saved["result"]
     result = build(lat, lon, **kwargs)
     os.makedirs(cache_dir, exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump({"cache_version": CACHE_VERSION, "result": result}, f)
-    os.replace(tmp, path)   # a half-written file never looks like a finished answer
+    # Unique temp name per request: the server is threaded, so two requests for the same point
+    # must not share one temp file (the second os.replace would fail).
+    fd, tmp = tempfile.mkstemp(dir=cache_dir, prefix=point_id(lat, lon) + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump({"cache_version": CACHE_VERSION, "result": result}, f)
+        os.replace(tmp, path)   # a half-written file never looks like a finished answer
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
     return result

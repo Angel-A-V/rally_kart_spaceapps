@@ -14,6 +14,7 @@
   --both: #1baf7a;
   --yes: #1a7f37;
   --no: #b42318;
+  --warn: #9a6700;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,6 +32,7 @@
     --both: #199e70;
     --yes: #3fb950;
     --no: #f2766b;
+    --warn: #d29922;
   }
 }
 
@@ -199,6 +201,20 @@ td.no { color: var(--no); font-weight: 600; }
 .table-view thead th { position: sticky; top: 0; background: var(--surface-2); }
 
 .error { color: var(--no); font-weight: 600; }
+
+/* Accuracy check against NASA (issue #1) */
+td.warn { color: var(--warn); font-weight: 600; }
+.accuracy-warn { color: var(--text); border-left: 3px solid var(--warn); padding: 6px 10px; background: var(--surface-2); }
+.accuracy-panel table.accuracy td, .accuracy-panel table.accuracy th { white-space: nowrap; }
+.accuracy-panel table.accuracy td.yes, .accuracy-panel table.accuracy td.warn, .accuracy-panel table.accuracy td.no { white-space: normal; }
+.globe-info table.accuracy td, .globe-info table.accuracy th { white-space: normal; padding: 6px; }
+.accuracy-panel p { margin-top: 12px; }
+.accuracy-panel h3 { margin-top: 20px; }
+.check-title { margin: 12px 0 4px; color: var(--text); }
+.check-list { list-style: none; padding-left: 0; margin: 0 0 8px; font-size: 0.9rem; }
+.check-list li { margin-bottom: 4px; }
+span.yes { color: var(--yes); font-weight: 700; }
+span.no { color: var(--no); font-weight: 700; }
 
 @media (max-width: 520px) {
   .cards { grid-template-columns: 1fr; }

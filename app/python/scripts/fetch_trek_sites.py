@@ -16,8 +16,11 @@ import urllib.request
 API = "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems"
 R_KM = 1737.4
 
-# Named features near the south pole to offer on the website. Add a name and re-run.
+# Named features near the poles to offer on the website. Add a name and re-run.
 FEATURES = ["Shackleton", "de Gerlache", "Haworth", "Nobile", "Mons Mouton", "Malapert", "Cabeus"]
+# North pole: large permanently shadowed craters and the sunlit Peary rim region (often named as
+# candidate polar sites alongside the south pole ones).
+FEATURES += ["Peary", "Hermite", "Whipple", "Rozhdestvenskiy", "Byrd"]
 # Past landing sites, stored in Moon Trek as "bookmark" items (a small box around the landing area).
 LANDING_SITES = ["Apollo 11", "Apollo 12", "Apollo 14", "Apollo 15", "Apollo 16", "Apollo 17"]
 
@@ -28,6 +31,11 @@ OUT = os.path.join(ROOT, "data", "sites_moontrek.json")
 def slug(name):
     """'Mons Mouton' -> 'mons_mouton' (used in file names)."""
     return "_".join(name.lower().split())
+
+
+def nearest_pole_km(lat_deg):
+    """Distance from the nearer pole (north for north latitudes), in km, same formula as pole_distance_km."""
+    return pole_distance_km(-abs(lat_deg))
 
 
 def pole_distance_km(lat_deg):
@@ -87,9 +95,11 @@ def main():
             "lat_deg": round(lat, 6),
             "lon_deg_east": round(lon, 6),
             "pole_distance_km": round(pole_distance_km(lat), 1),
+            "nearest_pole": "south" if lat < 0 else "north",
+            "nearest_pole_km": round(nearest_pole_km(lat), 1),
             "query": search_url(name, item_type),
         })
-        print(f"{name:12s} lat {lat:9.4f}  lon_E {lon:9.4f}  {pole_distance_km(lat):6.1f} km from the pole")
+        print(f"{name:12s} lat {lat:9.4f}  lon_E {lon:9.4f}  {nearest_pole_km(lat):6.1f} km from the nearer pole")
     payload = {
         "source": "NASA Moon Trek search service (IAU nomenclature and landing-site bookmarks), https://trek.nasa.gov/moon/",
         "note": "Named features: the centre of the feature, not a chosen landing spot. "

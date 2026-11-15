@@ -134,7 +134,7 @@ class SitesIndex(unittest.TestCase):
 
     def test_has_the_model_site_the_named_features_and_the_apollo_sites(self):
         ids = [s["id"] for s in build_sites_index()]
-        self.assertEqual(len(ids), 34)   # model site + 7 named features + 6 Apollo + 20 other landings
+        self.assertEqual(len(ids), 39)   # model site + 7 south + 5 north named features + 6 Apollo + 20 other landings
         for name in ("shackleton", "de_gerlache", "haworth", "nobile", "mons_mouton", "malapert", "cabeus",
                      "apollo_11", "apollo_12", "apollo_14", "apollo_15", "apollo_16", "apollo_17",
                      "luna_9", "surveyor_1", "change_4", "change_6", "chandrayaan_3", "slim", "im_2"):

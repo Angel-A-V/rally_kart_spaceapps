@@ -22,6 +22,17 @@ export function loadSiteAnalysis(id) {
   return getJson(`${id}_analysis.json`);
 }
 
+// Our numbers checked against NASA's published polar maps (scripts/crosscheck_pgda.py).
+// Optional: if the file is missing the page still works, just without the accuracy section.
+export function loadCrosscheck() {
+  return getJson("crosscheck.json").catch(() => null);
+}
+
+// Apollo records, LROC stereo terrain and physics checks (scripts/crosscheck_nonpolar.py). Optional too.
+export function loadChecks() {
+  return getJson("checks.json").catch(() => null);
+}
+
 // Any point on the Moon, analysed live by the Python backend (app/python/server/app.py).
 // Returns { site, analysis }: `site` has the shape of one sites.json entry and `analysis`
 // the shape of a <site>_analysis.json file, so the rest of the page treats it like any site.

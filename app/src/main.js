@@ -1,5 +1,6 @@
 import "./style.css";
-import { loadCustomPoint, loadSites, loadSiteAnalysis } from "./data.js";
+import { loadChecks, loadCrosscheck, loadCustomPoint, loadSites, loadSiteAnalysis } from "./data.js";
+import { accuracyNote, accuracyPanel } from "./accuracy.js";
 import { skyDiagram } from "./skyDiagram.js";
 import { numbersPanel } from "./numbersPanel.js";
 import { planPanel } from "./planPanel.js";
@@ -82,6 +83,7 @@ function globeSection() {
           <div id="globe" class="globe-wrap"></div>
           <div class="globe-controls">
             <button type="button" id="view-pole">South pole view</button>
+            <button type="button" id="view-north">North pole view</button>
             <button type="button" id="view-moon">Whole Moon</button>
             <span class="sub">Drag to turn, scroll to zoom. <strong>Click anywhere on the surface</strong> to analyse
             that spot with real terrain, or click a marker to open that site.</span>
@@ -230,17 +232,18 @@ function tableSection(sites, siteId) {
 
 // ---------- the page ----------
 
-function shell(sites, analyses, slots, plan) {
+function shell(sites, analyses, slots, plan, check, checks) {
   const last = analyses[sites[0].id].rows.length - 1;
   return `
     <h1>Lunar Landing Site Navigator</h1>
     <p class="intro">Which site, and when? Compare landing sites anywhere on the Moon by how long the Sun (power) and
     Earth (direct radio contact) stay above the local skyline, and find the best time to land. The curated sites
-    are near the south pole; click anywhere on the 3D Moon to analyse any other spot.</p>
+    cover both poles and past landing sites; click anywhere on the 3D Moon to analyse any other spot.</p>
     ${globeSection()}
     ${customSection()}
     ${planSection(sites, plan)}
     ${statsPanel(sites)}
+    ${accuracyPanel(check, sites, checks)}
     <section class="moment">
       <h2>Look at one moment: where are the Sun and Earth in the sky?</h2>
       <p>Pick a site and a time in each scenario to compare two sites, or two moments at the same site
@@ -288,7 +291,7 @@ function drawVerdict() {
 async function main() {
   const app = document.querySelector("#app");
   try {
-    const sites = await loadSites();
+    const [sites, check, checks] = await Promise.all([loadSites(), loadCrosscheck(), loadChecks()]);
     // A handful of small files: load them all up front so every picker answers instantly.
     // (When there are many sites, load each one when it is first picked instead.)
     const analyses = Object.fromEntries(
@@ -301,7 +304,7 @@ async function main() {
       b: { site: (sites[1] || sites[0]).id, index: Math.floor(last / 2) },
     };
     const plan = { site: sites[0].id, days: 14 };
-    app.innerHTML = shell(sites, analyses, slots, plan);
+    app.innerHTML = shell(sites, analyses, slots, plan, check, checks);
     view.slots = slots;
     view.analyses = analyses;
 
@@ -320,6 +323,7 @@ async function main() {
         (lat, lon) => analysePoint(lat, lon, "globe"),
       );
       document.querySelector("#view-pole").addEventListener("click", () => globe.setView("pole"));
+      document.querySelector("#view-north").addEventListener("click", () => globe.setView("north"));
       document.querySelector("#view-moon").addEventListener("click", () => globe.setView("moon"));
     } catch (error) {
       document.querySelector("#globe").innerHTML =
@@ -333,7 +337,8 @@ async function main() {
       const removable = id.startsWith("custom_") // only points you added yourself can be removed
         ? `<button type="button" class="remove-point" data-remove="${id}">Remove this point</button>`
         : "";
-      document.querySelector("#globe-info").innerHTML = siteInfo(sites.find((s) => s.id === id)) + removable;
+      const site = sites.find((s) => s.id === id);
+      document.querySelector("#globe-info").innerHTML = siteInfo(site) + accuracyNote(check?.sites[id], site, checks) + removable;
       if (globe) globe.select(id);
       drawPlan();
     }
@@ -478,7 +483,7 @@ async function main() {
       analysePoint(document.querySelector("#custom-lat").value, document.querySelector("#custom-lon").value, "form");
     });
   } catch (error) {
-    app.innerHTML = `<p class="error">Could not load the data: ${error.message}</p>`;
+    app.innerHTML = `<p class="error">Could not load the data: ${String(error.message).replace(/</g, "&lt;")}</p>`;
   }
 }
 

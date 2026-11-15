@@ -56,7 +56,8 @@ if os.path.exists(_trek_path):
         else:
             SITE_INFO[_s["id"]] = (
                 _s["name"],
-                f"Centre of the named lunar feature {_s['name']}, {_s['pole_distance_km']:.0f} km from the south pole. "
+                f"Centre of the named lunar feature {_s['name']}, "
+                f"{_pole_distance_km(-abs(_s['lat_deg'])):.0f} km from the {'south' if _s['lat_deg'] < 0 else 'north'} pole. "
                 "A named place, not a chosen landing spot.",
             )
             SITE_SOURCE[_s["id"]] = f"NASA Moon Trek (IAU nomenclature), retrieved {_trek['retrieved_utc']}"
