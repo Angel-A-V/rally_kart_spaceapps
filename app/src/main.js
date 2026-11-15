@@ -7,7 +7,7 @@ import { loadModelAddress, modelUrl } from "./model.js";
 // The tabletop model's address, if this browser was opened with ?model=<board address> (model.js).
 // Null for everyone else, and then nothing about the model is shown.
 const modelAddress = loadModelAddress();
-import { atAGlance } from "./compare.js";
+import { atAGlance, yearHeadToHead } from "./compare.js";
 import { advance, playerHtml, ticksHtml } from "./timeline.js";
 import { accuracyNote, accuracyPanel } from "./accuracy.js";
 import { skyDiagram } from "./skyDiagram.js";
@@ -18,7 +18,7 @@ import { infoTip } from "./ui/infoTip.js";
 import { icon } from "./ui/icons.js";
 import { makeWindow } from "./ui/windows.js";
 import { shootingStar, startAmbientSky, setMoonCircle } from "./ui/fx.js";
-import { statsPanel } from "./statsPanel.js";
+import { yearRanked } from "./yearRanked.js";
 import { tableView } from "./tableView.js";
 import { DEFAULT_SETTINGS, SUN_RULES, applySettings, compareVerdict, settingsSentence } from "./settings.js";
 
@@ -431,6 +431,7 @@ function shell(sites, analyses, slots, plan, check, checks) {
         </section>
       </div>
       <h3>A vs B at a glance</h3>
+      <div id="year-vs"></div>
       <div id="glance" class="table-wrap plain"></div>
       <h3>Which is better?</h3>
       <p class="verdict" id="compare-verdict" aria-live="polite"></p>
@@ -440,7 +441,7 @@ function shell(sites, analyses, slots, plan, check, checks) {
     ["compare", compare],
     ["add", customSection()],
     ["plan", planSection(sites, plan)],
-    ["year", statsPanel(sites)],
+    ["year", `<div id="year-ranked">${yearRanked(sites)}</div>`],
     ["table", tableSection(sites, slots.a.site)],
     ["accuracy", accuracyPanel(check, sites, checks)],
     ["sources", sourcesPanel(analyses)],
@@ -484,6 +485,8 @@ function drawVerdict() {
   };
   el.innerHTML = compareVerdict(side("A", slots.a), side("B", slots.b));
   const year = (id) => view.sites?.find((s) => s.id === id)?.year;
+  document.querySelector("#year-vs").innerHTML = yearHeadToHead(
+    analyses[slots.a.site].label, year(slots.a.site), analyses[slots.b.site].label, year(slots.b.site));
   document.querySelector("#glance").innerHTML = atAGlance(
     { ...side("A", slots.a), year: year(slots.a.site) }, { ...side("B", slots.b), year: year(slots.b.site) });
 }
@@ -727,6 +730,17 @@ async function main() {
           showPanel(`<h3>Coordinates</h3><p><code>${text}</code></p>`);
         }
       }
+    });
+
+    // "The year" page: region and ranking column (Angel's Claude Design, Year B).
+    const yr = { region: "south", sortKey: "both" };
+    document.addEventListener("click", (e) => {
+      const r = e.target.closest("[data-yr-region]");
+      const c = e.target.closest("[data-yr-sort]");
+      if (!r && !c) return;
+      if (r) yr.region = r.dataset.yrRegion;
+      if (c) yr.sortKey = c.dataset.yrSort;
+      document.querySelector("#year-ranked").innerHTML = yearRanked(sites, yr);
     });
 
     // Everything inside the analysis panel and the sites list is wired by delegation (it is redrawn often).

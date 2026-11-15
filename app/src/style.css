@@ -591,3 +591,51 @@ body.ui-hidden .ui-toggle:hover, body.ui-hidden .ui-toggle:focus-visible { opaci
 .waffle.both .on { background: var(--both); }
 .mode-research { margin-top: 14px; }
 .mode-research > h3:first-child, .mode-research > h3:first-child + p { display: none; }  /* name already in the header */
+
+/* ---- The year, ranked by region (src/yearRanked.js; Angel's Claude Design "Year B") ---- */
+.yr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 10px 0 12px; }
+.seg { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--glass-line); border-radius: 10px; background: var(--surface); }
+.seg button { min-height: 32px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: var(--text-2); font: inherit; font-size: 0.85rem; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.yr-table { display: grid; overflow-x: auto; }
+.yr-row { display: grid; grid-template-columns: 22px minmax(150px, 1.4fr) repeat(5, minmax(84px, 1fr)); column-gap: 12px; align-items: center;
+  padding: 8px 0; border-top: 1px solid var(--grid); min-width: 640px; }
+.yr-head { border-top: 0; border-bottom: 1px solid var(--line); align-items: end; }
+.yr-site-h { color: var(--text-2); font-size: 0.8rem; font-weight: 600; }
+.yr-col { display: inline-flex; align-items: center; gap: 6px; padding: 4px 0; border: 0; background: none; color: var(--text-2); font: inherit; font-size: 0.8rem; text-align: left; cursor: pointer; }
+.yr-col[aria-pressed="true"] { color: var(--text); font-weight: 600; }
+.yr-col i { flex: none; width: 8px; height: 8px; border-radius: 2px; background: var(--text-2); }
+.yr-col.sun i, .yr-cell.sun .yr-bar div { background: var(--sun); }
+.yr-col.earth i, .yr-cell.earth .yr-bar div { background: var(--earth); }
+.yr-col.both i, .yr-cell.both .yr-bar div { background: var(--both); }
+.yr-col.dark i, .yr-cell.dark .yr-bar div { background: #8b8f97; }
+.yr-rank { color: var(--text-2); font-size: 0.8rem; text-align: right; font-variant-numeric: tabular-nums; }
+.yr-name { display: grid; justify-items: start; min-width: 0; padding: 4px 0; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.yr-name span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.yr-name small { color: var(--text-2); font-size: 0.72rem; }
+.yr-cell { display: grid; gap: 5px; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.yr-cell.sorted { color: var(--text); font-weight: 600; }
+.yr-bar { height: 6px; border-radius: 999px; background: var(--grid); overflow: hidden; }
+.yr-bar div { height: 100%; border-radius: 999px; }
+
+/* ---- Compare: the year head to head (src/compare.js yearHeadToHead; Angel's Claude Design "Compare") ---- */
+.hh { display: grid; gap: 2px; margin: 12px 0; }
+.hh-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px minmax(0, 1fr); gap: 12px; align-items: center; padding: 7px 0; border-top: 1px solid var(--grid); }
+.hh-head { border-top: 0; color: var(--text-2); font-size: 0.8rem; font-weight: 600; }
+.hh-head span:nth-child(2) { text-align: center; }
+.hh-head span:last-child { text-align: right; }
+.hh-mid { display: grid; justify-items: center; text-align: center; }
+.hh-mid strong { font-size: 0.85rem; font-weight: 600; }
+.hh-mid small { color: var(--text-2); font-size: 0.72rem; }
+.hh-side { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.hh-side.a { flex-direction: row; }
+.hh-side.b { flex-direction: row-reverse; }
+.hh-side.better { color: var(--text); font-weight: 700; }
+.hh-bar { flex: 1; display: flex; height: 8px; border-radius: 999px; background: var(--grid); overflow: hidden; }
+.hh-side.a .hh-bar { justify-content: flex-end; }
+.hh-bar div { height: 100%; border-radius: 999px; opacity: 0.45; }
+.hh-side.better .hh-bar div { opacity: 1; }
+.hh-bar.sun div { background: var(--sun); }
+.hh-bar.earth div { background: var(--earth); }
+.hh-bar.both div { background: var(--both); }
+.hh-bar.dark div { background: #8b8f97; }
