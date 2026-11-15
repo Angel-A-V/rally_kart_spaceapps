@@ -131,8 +131,6 @@ function quickViews() {
       <button type="button" id="sun-toggle" aria-pressed="true" title="Shade the half of the Moon that is in night at the chosen time (Sun position from NASA JPL Horizons)">Day and night: <span id="sun-state">on</span> </button>
       <button type="button" id="shadow-toggle" aria-pressed="true" title="Shadows cast by hills and crater walls, worked out from NASA LOLA heights and the real Sun direction (about 4 km detail)">Terrain shadows: <span id="shadow-state">on</span></button>
       <button type="button" id="lola-toggle" aria-pressed="false" title="Colour the Moon by height (NASA LRO LOLA laser altimeter): cool colours are low ground, warm colours are high">Elevation (LOLA): <span id="lola-state">off</span></button>
-      <span class="sep" aria-hidden="true"></span>
-      <button type="button" id="clean-toggle" title="Hide every panel, label and marker so only the Moon, Sun and Earth show (Esc brings them back)">Hide overlays</button>
     </nav>
     <div class="hud readout" id="readout" aria-hidden="true">Move over the Moon</div>
     <ul class="hud legend-mini" aria-label="Map legend">
@@ -201,7 +199,6 @@ function panel() {
       <div id="globe-info" class="globe-info" aria-live="polite"></div>
     </aside>
     <div id="win-tray" class="win-tray" aria-label="Minimized panels"></div>
-    <button type="button" id="clean-restore" class="clean-restore" hidden>Show overlays</button>
     <div id="ctx" class="ctx-menu glass" role="menu" hidden></div>`;
 }
 
@@ -453,7 +450,11 @@ function shell(sites, analyses, slots, plan, check, checks) {
     ${quickViews()}
     ${drawer()}
     ${sheet(pages)}
-    ${panel()}`;
+    ${panel()}
+    <button type="button" id="ui-toggle" class="ui-toggle" aria-pressed="false" title="Hide the panels and look at the Moon (H)">
+      <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span class="ui-toggle-text">Just the Moon</span>
+    </button>`;
 }
 
 function drawSlot(id, slot, analyses) {
@@ -603,20 +604,29 @@ async function main() {
       title: () => document.querySelector("#sheet-title").textContent || "Page",
     });
 
-    // "Hide overlays": only the Moon, Sun and Earth stay on screen. Esc or "Show overlays" brings it all back.
-    const cleanRestore = document.querySelector("#clean-restore");
-    const setClean = (on) => {
-      document.body.classList.toggle("clean", on);
-      cleanRestore.hidden = !on;
-      if (globe) globe.setClean(on);
-      (on ? cleanRestore : document.querySelector("#clean-toggle")).focus();
+    // "Just the Moon": hide every panel and bar so people can look at the Moon and the sky.
+    // The button stays (dimmed) to bring everything back; H toggles, Esc also brings it back.
+    const uiBtn = document.querySelector("#ui-toggle");
+    const setUiHidden = (hide) => {
+      document.body.classList.toggle("ui-hidden", hide);
+      uiBtn.setAttribute("aria-pressed", String(hide));
+      if (globe) globe.setOverlay(!hide); // the site dots and the pin go too
+      uiBtn.querySelector(".ui-toggle-text").textContent = hide ? "Show panels" : "Just the Moon";
+      uiBtn.title = hide ? "Bring the panels back (H or Esc)" : "Hide the panels and look at the Moon (H)";
+      if (hide) closeContextMenu();
     };
-    document.querySelector("#clean-toggle").addEventListener("click", () => setClean(true));
-    cleanRestore.addEventListener("click", () => setClean(false));
-
+    uiBtn.addEventListener("click", () => setUiHidden(!document.body.classList.contains("ui-hidden")));
+    document.addEventListener("keydown", (e) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "h" || e.key === "H")) {
+        setUiHidden(!document.body.classList.contains("ui-hidden"));
+      } else if (e.key === "Escape" && document.body.classList.contains("ui-hidden")) {
+        e.stopImmediatePropagation();
+        setUiHidden(false);
+      }
+    });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
-      if (document.body.classList.contains("clean")) return setClean(false);
       if (!ctxEl.hidden) return closeContextMenu();
       if (!sheetEl.hidden) return closeSheet();
       if (!drawerEl.hidden) {

@@ -226,7 +226,6 @@ export function createGlobe(container, sites, handlers = {}) {
 
   // Site markers: a small dot to see, and a bigger invisible ball around it that is easier to click.
   const markers = [];
-  let clean = false; // "Hide overlays": markers and pins hidden, only the Moon, Sun and Earth drawn
   const hitTargets = [];
   const labelLayer = document.createElement("div");
   labelLayer.className = "globe-labels";
@@ -307,6 +306,14 @@ export function createGlobe(container, sites, handlers = {}) {
   );
   pin.visible = false;
   scene.add(pin);
+
+  // "Just the Moon" view: hide every marker, the pin and the working dot (the page hides the labels).
+  let overlayShown = true;
+  const setOverlay = (show) => {
+    overlayShown = show;
+    pin.material.visible = show;
+    pendingDot.material.visible = show;
+  };
 
   // Day and night: a see-through dark shell over the half of the Moon facing away from the Sun.
   // The Sun's direction comes from NASA JPL Horizons (main.js, via geo.js sunDirection).
@@ -593,6 +600,7 @@ export function createGlobe(container, sites, handlers = {}) {
   };
   const siteUnder = (event) => {
     aim(event);
+    if (!overlayShown) return null; // markers hidden ("Just the Moon"): nothing to click
     const hits = raycaster.intersectObjects(hitTargets, false);
     return hits.length ? hits[0].object.userData.siteId : null;
   };
@@ -713,7 +721,7 @@ export function createGlobe(container, sites, handlers = {}) {
       m.hit.scale.setScalar(scale);
       toCamera.copy(camera.position).sub(m.position);
       const facing = toCamera.dot(m.position) > 0; // false when the site is on the far side
-      m.dot.visible = facing && !clean;
+      m.dot.visible = facing && overlayShown;
       m.dot.quaternion.copy(camera.quaternion);     // face the viewer
       projected.copy(m.position).project(camera);
       const x = ((projected.x + 1) / 2) * width();
@@ -755,11 +763,7 @@ export function createGlobe(container, sites, handlers = {}) {
     placeBodyLabel(sunLabel, sunBody, 18);
     placeBodyLabel(earthLabel, earthBody, 22);
     if (!reducedMotion()) stars.material.uniforms.uTime.value = performance.now() / 1000;
-    // "Hide overlays": the pin and the working-on-it dot sit out this frame, then get their state back.
-    const keep = clean ? [pin.visible, pendingDot.visible] : null;
-    if (clean) pin.visible = pendingDot.visible = false;
     renderer.render(scene, camera);
-    if (keep) [pin.visible, pendingDot.visible] = keep;
     requestAnimationFrame(frame);
   };
   frame();
@@ -784,7 +788,5 @@ export function createGlobe(container, sites, handlers = {}) {
     if (selectedId === siteId) selectedId = null;
   };
 
-  const setClean = (on) => { clean = Boolean(on); };
-
-  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setEarth, setShadows, setLayer, addSite, removeSite, markPending, setClean };
+  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setEarth, setShadows, setLayer, addSite, removeSite, markPending, setOverlay };
 }
