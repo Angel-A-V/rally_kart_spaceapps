@@ -215,12 +215,52 @@ function physicsSection(p, name) {
 }
 
 // The full section: every check in one place.
+// Sunlight over a year, ours vs NASA, one line per polar site (Angel's Claude Design "How accurate"):
+// the band is NASA's range within 60 m, the white tick NASA's value at the point, the dot ours.
+const RESULT = { agrees: ["Agrees", "ok"], agrees_within_60m: ["Within 60 m", "near"] };
+function rangePlot(check, name) {
+  const entries = Object.entries(check.sites || {}).filter(([, e]) => e.nasa?.sun && e.ours);
+  if (!entries.length) return "";
+  const n = { ok: 0, near: 0, bad: 0 };
+  const rows = entries.map(([id, e]) => {
+    const [word, cls] = RESULT[e.verdict?.sun] ?? ["Differs", "bad"];
+    n[cls]++;
+    const s = e.nasa.sun;
+    const clamp = (v) => Math.max(0, Math.min(100, v));
+    return `
+      <div class="rp-row">
+        <div class="rp-name"><span>${name[id] ?? id}</span><small>${e.pole === "north" ? "North" : "South"} pole</small></div>
+        <div class="rp-track" role="img" aria-label="Sunlight: ours ${e.ours.sun}%, NASA ${s.at}% (range ${s.min} to ${s.max}% within 60 m)">
+          <div class="rp-band" style="left:${clamp(s.min)}%;width:${clamp(s.max) - clamp(s.min)}%"></div>
+          <div class="rp-nasa" style="left:${clamp(s.at)}%"></div>
+          <div class="rp-ours" style="left:${clamp(e.ours.sun)}%"></div>
+        </div>
+        <span class="rp-num">${Math.round(e.ours.sun)} / ${Math.round(s.at)}%</span>
+        <span class="rp-num">${e.nasa.earth ? `${Math.round(e.ours.earth)} / ${Math.round(e.nasa.earth.at)}%` : "–"}</span>
+        <span class="rp-res ${cls}">${word}</span>
+      </div>`;
+  }).join("");
+  return `
+    <div class="rp">
+      <div class="rp-tiles">
+        <div><strong>${n.ok}</strong><span>polar sites agree</span></div>
+        <div><strong>${n.near}</strong><span>agree within 60 m</span></div>
+        <div><strong>${n.bad}</strong><span>differ</span></div>
+      </div>
+      <h3>Sunlight over a year: ours vs NASA</h3>
+      <p class="rp-key"><span class="k-ours"></span>Ours <span class="k-nasa"></span>NASA at the point <span class="k-band"></span>NASA range within 60 m</p>
+      <div class="rp-row rp-head"><span>Site</span><span>Sunlight, 0 to 100%</span><span>Sun ours / NASA</span><span>Earth ours / NASA</span><span>Result</span></div>
+      ${rows}
+    </div>`;
+}
+
 export function accuracyPanel(check, sites, checks = null) {
   if (!check && !checks) return "";
   const name = Object.fromEntries(sites.map((s) => [s.id, s.label]));
   return `
     <details class="sources accuracy-panel" open>
       <summary>How accurate is this? Checked against independent NASA sources</summary>
+      ${check ? rangePlot(check, name) : ""}
       ${check ? polarSection(check, name) : ""}
       ${checks?.apollo ? apolloSection(checks.apollo) : ""}
       ${checks?.terrain ? terrainSection(checks.terrain, name) : ""}

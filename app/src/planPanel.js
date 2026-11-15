@@ -133,11 +133,37 @@ function windowList(title, windows) {
 }
 
 // sites: the sites index. analyses: {siteId: analysis}. siteId and days: what the two pickers say.
+// "Best time to land" card (Angel's Claude Design "Plan a mission"): the rank-1 window, big.
+function bestCard(picks, days) {
+  const best = picks?.find((x) => x.rank === 1);
+  if (!best || (best.sun_pct === 0 && best.earth_pct === 0)) return "";
+  const [date, time] = best.start_time_utc.split(" ");
+  const [y, mon, d] = date.split("-");
+  const full = best.both_pct >= 100;
+  const line = full
+    ? `Power and a direct radio link for all ${days} days.`
+    : `Both up for ${pct(best.both_pct)} of the ${days} days, the most this site offers in the year.`;
+  return `
+    <div class="best-land">
+      <div>
+        <span class="best-k">Best time to land</span>
+        <span class="best-date">${Number(d)} ${mon} ${y} <small>${time} UTC</small></span>
+        <span class="best-line">${line}</span>
+      </div>
+      <div class="best-pills">
+        <span class="sun">Sun ${pct(best.sun_pct)}</span>
+        <span class="earth">Earth ${pct(best.earth_pct)}</span>
+        <span class="both">Both ${pct(best.both_pct)}</span>
+      </div>
+    </div>`;
+}
+
 export function planPanel(sites, analyses, siteId, days) {
   const a = analyses[siteId];
   const plan = a.plan;
   const picks = plan.best_starts[String(days)];
   return `
+    ${bestCard(picks, days)}
     <p class="verdict">${verdict(a.label, picks, days)}</p>
     ${crossSiteTable(sites, analyses, days)}
     <h3>The year at ${a.label}</h3>

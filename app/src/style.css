@@ -639,3 +639,45 @@ body.ui-hidden .ui-toggle:hover, body.ui-hidden .ui-toggle:focus-visible { opaci
 .hh-bar.earth div { background: var(--earth); }
 .hh-bar.both div { background: var(--both); }
 .hh-bar.dark div { background: #8b8f97; }
+
+/* ---- Plan a mission: best time to land (src/planPanel.js bestCard; Angel's Claude Design "Plan a mission") ---- */
+.best-land { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 12px 0;
+  padding: 16px 18px; border: 1px solid var(--glass-line); border-radius: var(--radius); background: var(--surface-2); }
+.best-land > div:first-child { display: grid; gap: 3px; }
+.best-k { color: var(--text-2); font-size: 0.8rem; font-weight: 600; }
+.best-date { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.best-date small { color: var(--text-2); font-size: 0.9rem; font-weight: 500; }
+.best-line { color: var(--text-2); font-size: 0.9rem; }
+.best-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.best-pills span { padding: 4px 10px; border-radius: 999px; border: 1px solid currentColor; font-size: 0.8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.best-pills .sun { color: var(--sun); }
+.best-pills .earth { color: var(--earth); }
+.best-pills .both { color: var(--both); }
+
+/* ---- How accurate: range plot (src/accuracy.js rangePlot; Angel's Claude Design "How accurate") ---- */
+.rp { display: grid; gap: 2px; margin: 10px 0 16px; overflow-x: auto; }
+.rp h3 { margin: 10px 0 2px; font-size: 0.95rem; }
+.rp-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rp-tiles div { display: grid; gap: 2px; padding: 12px; border: 1px solid var(--glass-line); border-radius: var(--radius); background: var(--surface-2); }
+.rp-tiles strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.rp-tiles span { color: var(--text-2); font-size: 0.8rem; }
+.rp-key { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; color: var(--text-2); font-size: 0.78rem; }
+.rp-key span { display: inline-block; margin-left: 8px; }
+.k-ours { width: 10px; height: 10px; border-radius: 50%; background: var(--sun); }
+.k-nasa { width: 2px; height: 12px; background: var(--text); }
+.k-band { width: 16px; height: 8px; border-radius: 2px; background: rgba(240, 122, 62, 0.3); }
+.rp-row { display: grid; grid-template-columns: minmax(120px, 1.2fr) minmax(160px, 2fr) 84px 84px 92px; gap: 10px; align-items: center;
+  padding: 7px 0; border-top: 1px solid var(--grid); min-width: 600px; }
+.rp-head { border-top: 0; color: var(--text-2); font-size: 0.75rem; font-weight: 600; }
+.rp-name { display: grid; }
+.rp-name span { font-size: 0.85rem; font-weight: 550; }
+.rp-name small { color: var(--text-2); font-size: 0.72rem; }
+.rp-track { position: relative; height: 18px; background: linear-gradient(var(--grid), var(--grid)) center / 100% 2px no-repeat; }
+.rp-band { position: absolute; top: 4px; height: 10px; border-radius: 3px; background: rgba(240, 122, 62, 0.3); }
+.rp-nasa { position: absolute; top: 0; width: 2px; height: 18px; margin-left: -1px; background: var(--text); }
+.rp-ours { position: absolute; top: 3px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--sun); border: 2px solid var(--surface); }
+.rp-num { font-size: 0.82rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.rp-res { justify-self: start; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; font-size: 0.75rem; font-weight: 600; }
+.rp-res.ok { color: var(--yes); }
+.rp-res.near { color: var(--warn); }
+.rp-res.bad { color: var(--no); }
