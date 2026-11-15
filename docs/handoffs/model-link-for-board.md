@@ -14,8 +14,9 @@ http://<board-ip>:7000/?site=Shackleton+rim+%28model+site%29&time=2026-Nov-18+08
   &sun_az=230.1&sun_el=1.4&sun_up=1&earth_az=149.8&earth_el=-0.7&earth_up=0&az=230.1&el=1.4
 ```
 
-The board's page reads the numbers from its own address and moves **both** parts of the model at once:
-the Sun (horizon disc on the stepper, fixed lamp) and Earth (SG90 servo). One click, both move.
+The board's page reads the numbers from its own address and moves **both** motors at once: the horizon
+disc (28BYJ-48 stepper, the Sun) and the Earth arm (SG90 servo). One click, both move. Pins, power and the
+arm geometry are in `docs/handoffs/wiring.md` (Darren, PRs #26 and #28).
 
 - The button appears only on the website's **Shackleton rim** page (the printed terrain is that site) and
   only on a laptop opened once with `?model=<board-ip>`. The public site never shows it.
@@ -41,16 +42,46 @@ count the hills (worked out by the website with the rules chosen there).
 
 ## What each number is for
 
-**Sun → horizon disc (stepper) and lamp.** Already decided in `docs/handoffs/angel-to-hardware.md`:
-home on the Hall sensor, call that azimuth 0 (the lamp sits at 0° from the sensor), then turn the disc by
-`sun_az`, **clockwise seen from above** (the Sun's azimuth falls about 0.5° per hour, so a fixed lamp means a
-clockwise disc). Take the short way round where the wiring allows it.
-Lamp: on when `sun_up=1`, off when `0`. `sun_el` hardly changes here (below), so the lamp's height stays fixed.
+**`sun_az` → horizon disc (stepper on D8 to D11).** The lamp is fixed; the disc turns so that the terrain's
+compass mark `sun_az` faces the lamp. If, at home (Hall sensor on D2), the terrain mark facing the lamp is
+`L0`, then:
 
-**Earth → SG90 servo.** Use `earth_el` for the lift angle. Earth only moves a few degrees, so exaggerate it
-(issue #7 sets the factor). Example mapping, to tune on the real arm:
-`servo_deg = clamp(90 + K * earth_el, 0, 180)` with `K` about 10 (so -7° → 20°, +6.4° → 154°).
-`earth_up` can drive an indicator (Earth visible = radio link possible), or just be shown on the page.
+```
+disc turn from home, CLOCKWISE seen from above = (L0 - sun_az) mod 360
+```
+
+- **Careful, this is easy to mirror:** with `L0 = 0`, a Sun in the east (`sun_az = 90`) means turning the disc
+  a quarter turn **counter-clockwise** (the E mark swings round to the lamp), not clockwise. Over time the
+  Sun's azimuth falls (about 0.5° per hour), so the disc creeps clockwise, which is what
+  `angel-to-hardware.md` section 2 means by "the disc turns clockwise".
+- **`L0` is not settled:** `angel-to-hardware.md` says the lamp sits at **0°** from the Hall sensor;
+  Gustavo's wiring guide (`wiring-guide.html`) says **180°**. Use a constant and set it from the real build.
+- The 6:1 gear may reverse the motor's direction relative to the disc: set the sign on the bench with the
+  first test address below.
+
+**`sun_el`, `sun_up` → display only.** The Sun lamp is a battery keychain light with **no wires**, so the
+board cannot switch it. Show "Sun above the skyline: yes/no" on the page (the built-in LED is fine as an
+indicator). `sun_el` stays within ±1.8° here, so the lamp's fixed height (LED centre 33 mm, level with the
+eye) already matches.
+
+**`earth_el` → Earth arm (SG90 on D6).** From `wiring.md`:
+
+```
+arm_angle = atan(10 * tan(earth_el))      software limits -52 to +48 degrees
+```
+
+This uses the elevation only. Our data range (-7.30° to +6.38°) maps to -52.0° to +48.2°, exactly those
+limits. Converting `arm_angle` to the SG90's 0 to 180° depends on how the horn is mounted (for example
+`servo = 90 + arm_angle` if 90 is level) **[verify on the arm]**.
+
+**`earth_az`, `earth_up` → display only.** The Earth arm stands on the fixed base (nothing electrical rides
+on the disc), so it shows Earth's height, not its compass direction. Earth's direction stays within
+148° to 164° of the terrain (the engraved mark is 156.3°); say in the demo that the engraved mark shows
+where Earth is and the arm shows how high. `earth_up` = radio link possible: show it on the page.
+
+**Nice extra (optional):** the photoresistor on A2 measures whether the printed wall shades the lamp. Showing
+"photoresistor: lit / shaded" next to the website's `sun_up` is a live check that the model agrees with the
+NASA-based answer.
 
 ## Real ranges at Shackleton rim (from the site's NASA JPL Horizons data, one year, 6-hour steps)
 
@@ -61,19 +92,6 @@ Lamp: on when `sun_up=1`, off when `0`. `sun_el` hardly changes here (below), so
 | `earth_az` | 148.3° | 163.9° | Mean 156.2° (the engraved Earth mark is 156.3°) |
 | `earth_el` | -7.30° | +6.38° | Swings over about a month (libration) |
 | skyline | -2.42° | +1.04° | Why `sun_up` / `earth_up` are sent instead of a 0° test |
-
-## Open design question for the hardware team (not decided here)
-
-Earth's direction is fixed **relative to the terrain** (azimuth 148° to 164°, the engraved mark at 156.3°),
-but the disc spins a full turn for the Sun. So:
-
-- If the SG90 Earth stands **off the disc**, fixed in the room (keeping "nothing electrical on the disc"),
-  its height is right but its compass direction relative to the terrain is only right when the disc happens
-  to put terrain azimuth 156° in front of it. Say so in the demo, or
-- mount the Earth arm **on the disc** at 156° so it turns with the terrain. That breaks "nothing electrical
-  on the disc": the servo wires would wind up as the disc turns, so the disc would have to unwind (stay
-  within about ±180° of home, swinging back when the Sun's azimuth wraps past 0°/360°), or
-- give Earth its own rotating stage.
 
 ## Behaviour the page should have
 
@@ -89,7 +107,9 @@ http://<board-ip>:7000/?site=Test&time=test&sun_az=90&sun_el=1&sun_up=1&earth_az
 http://<board-ip>:7000/?site=Test&time=test&sun_az=270&sun_el=-1&sun_up=0&earth_az=150&earth_el=-7&earth_up=0&az=270&el=-1
 ```
 
-The first should turn the disc a quarter turn clockwise from home, light the lamp and lift Earth high; the
-second should turn it three quarters, switch the lamp off and drop Earth low.
+With `L0 = 0`: the first should turn the disc a quarter turn **counter-clockwise** from home (the terrain's
+E mark at the lamp), show "Sun up" and lift the Earth arm to about +46°; the second a quarter turn **clockwise** (the
+W mark at the lamp), show "Sun blocked" and drop the Earth arm to about -51°. With `L0 = 180` each target is half a
+turn further round.
 
 Website side: `app/src/model.js` (address checks and this address), `app/src/main.js` (the button).
