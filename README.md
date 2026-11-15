@@ -69,8 +69,32 @@ before works offline. The skyline is real LOLA terrain anywhere on the Moon once
 downloaded (2.1 GB, once): `python3 app/python/scripts/make_skyline.py --grid LDEM_128`. Near the south pole
 the finer polar maps are used instead when they are downloaded too (`make_skyline.py`, about 610 MB).
 With no map at all, the page says it is using a flat horizon. `GET /api/health` shows which maps are present.
-On the UNO Q, run `npm run build` first and start the backend with `HOST=0.0.0.0`: it then serves the
-whole site on port 8000.
+
+## Set up the Arduino UNO Q (or any new machine) to match the Mac
+
+Git holds all the computed results (every site, skyline, Horizons file and accuracy check). Three things
+are NOT in git and must be added on each machine:
+
+| What | Why not in git | How to get it |
+|---|---|---|
+| `data/raw/` NASA data files (3.7 GB) | GitHub refuses files over 100 MB | `python3 app/python/scripts/fetch_raw_data.py`, or copy the folder from the Mac |
+| `app/dist/` the built website | made from the source | build on the Mac (`cd app && npm run build`) and copy it; Node is not needed on the UNO Q |
+| Python packages | installed per machine | `sudo apt install python3-numpy python3-flask` |
+
+On the UNO Q (Linux side), from the repo root:
+
+```
+git pull                                               # or git clone the first time
+sudo apt install python3-numpy python3-flask
+python3 app/python/scripts/fetch_raw_data.py           # everything the Mac has (3.7 GB); add "terrain" for only the 2.0 GB the website needs
+# from the Mac:  cd app && npm run build && scp -r dist <user>@<uno-q-address>:<repo>/app/
+HOST=0.0.0.0 python3 app/python/server/app.py          # the whole site on port 8000
+curl http://localhost:8000/api/health                  # "LDEM_128": true means click-anywhere has real terrain
+```
+
+`fetch_raw_data.py --list` shows what is present; it skips complete files and resumes broken downloads.
+Only `LDEM_128.IMG` is used while the site runs; the other files are for re-running the accuracy checks.
+Copying `data/raw/` over USB or `scp` is faster than downloading; run `--list` afterwards to confirm.
 
 ## Get the Sun and Earth directions (NASA JPL Horizons)
 
