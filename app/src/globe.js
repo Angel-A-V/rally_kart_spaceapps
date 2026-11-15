@@ -58,17 +58,57 @@ function loadSurface(texture, canvas, layer = "photo", isCurrent = () => true) {
   draw(SURFACE_ZOOM);
 }
 
+// Background stars. Each has its own brightness, size and twinkle rhythm; the twinkle runs on the
+// graphics card (one number, uTime, changes per frame), so it costs nothing on the page.
+// With reduced motion, uTime stays at 0 and the stars hold still.
 function makeStars() {
   const positions = [];
+  const phase = [];
+  const speed = [];
+  const base = [];
+  const size = [];
   for (let i = 0; i < 1500; i++) {
     const u = Math.random() * 2 - 1;
     const t = Math.random() * 2 * Math.PI;
     const s = Math.sqrt(1 - u * u);
     positions.push(60 * s * Math.cos(t), 60 * u, 60 * s * Math.sin(t));
+    phase.push(Math.random() * Math.PI * 2);
+    speed.push(0.6 + Math.random() * 2.2);
+    const bright = Math.random() ** 2.2;            // mostly faint stars, a few bright ones
+    base.push(0.35 + 0.65 * bright);
+    size.push(1.0 + 1.6 * bright);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  return new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, sizeAttenuation: false }));
+  geometry.setAttribute("phase", new THREE.Float32BufferAttribute(phase, 1));
+  geometry.setAttribute("speed", new THREE.Float32BufferAttribute(speed, 1));
+  geometry.setAttribute("base", new THREE.Float32BufferAttribute(base, 1));
+  geometry.setAttribute("size", new THREE.Float32BufferAttribute(size, 1));
+  const material = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) } },
+    vertexShader: `
+      attribute float phase; attribute float speed; attribute float base; attribute float size;
+      uniform float uTime; uniform float uPixelRatio;
+      varying float vAlpha;
+      void main() {
+        // gentle shimmer, plus a rarer deeper dip so a few stars visibly flicker
+        float tw = 0.75 + 0.25 * sin(uTime * speed + phase);
+        tw *= 0.85 + 0.15 * sin(uTime * speed * 2.7 + phase * 3.1);
+        vAlpha = base * tw;
+        gl_PointSize = size * uPixelRatio;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      varying float vAlpha;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        float a = vAlpha * smoothstep(0.5, 0.15, d);   // soft round star, not a square
+        gl_FragColor = vec4(vec3(1.0), a);
+      }`,
+    transparent: true,
+    depthWrite: false,
+  });
+  return new THREE.Points(geometry, material);
 }
 
 export function createGlobe(container, sites, handlers = {}) {
@@ -83,7 +123,8 @@ export function createGlobe(container, sites, handlers = {}) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
-  scene.add(makeStars());
+  const stars = makeStars();
+  scene.add(stars);
 
   const camera = new THREE.PerspectiveCamera(40, width() / height(), 0.01, 200);
 
@@ -330,9 +371,40 @@ export function createGlobe(container, sites, handlers = {}) {
     }
     u.shadows.value = on && u.heightMap.value ? 1 : 0;
   };
+  // The Sun itself, far off in the direction that lights the Moon. White, as it looks from space
+  // (no air to scatter the blue out). Its core is drawn at the Sun's real apparent size from the Moon
+  // (about 0.53 degrees across), inside a soft glare; the Moon hides it when it is behind.
+  const SUN_DIST = 55; // inside the star sphere (60), so the Sun sits in front of the stars
+  const sun = (() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    const g = c.getContext("2d");
+    const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.085, "rgba(255,255,255,1)");   // the disc: 0.085 of the half-width
+    grad.addColorStop(0.11, "rgba(255,252,245,0.55)");
+    grad.addColorStop(0.25, "rgba(255,248,235,0.12)");
+    grad.addColorStop(1, "rgba(255,248,235,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 256, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    // disc radius = SUN_DIST * tan(0.265 deg); the sprite is that / 0.085 wide on each side
+    const half = (SUN_DIST * Math.tan((0.265 * Math.PI) / 180)) / 0.085;
+    s.scale.set(half * 2, half * 2, 1);
+    s.visible = false;
+    return s;
+  })();
+  scene.add(sun);
+
   const setSun = (dir) => {
     night.visible = Boolean(dir);
-    if (dir) night.material.uniforms.sunDir.value.set(...dir).normalize();
+    sun.visible = Boolean(dir);
+    if (dir) {
+      night.material.uniforms.sunDir.value.set(...dir).normalize();
+      sun.position.copy(night.material.uniforms.sunDir.value).multiplyScalar(SUN_DIST);
+    }
   };
   const setPin = (lat, lon) => {
     if (lat === null || lat === undefined) {
@@ -573,6 +645,7 @@ export function createGlobe(container, sites, handlers = {}) {
       el.style.top = `${y}px`;
     }
     for (let i = used; i < featureLabels.length; i++) featureLabels[i].style.display = "none";
+    if (!reducedMotion()) stars.material.uniforms.uTime.value = performance.now() / 1000;
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
   };
@@ -598,5 +671,25 @@ export function createGlobe(container, sites, handlers = {}) {
     if (selectedId === siteId) selectedId = null;
   };
 
-  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setShadows, setLayer, addSite, removeSite, markPending };
+  // Where the Moon's disc is on screen, in pixels: { x, y, r }. Used to keep shooting stars behind it.
+  const moonCircle = () => {
+    const d = camera.position.length();
+    const dir = camera.position.clone().normalize();
+    const up = camera.up.clone().sub(dir.clone().multiplyScalar(camera.up.dot(dir)));
+    if (up.lengthSq() < 1e-6) up.set(1, 0, 0).sub(dir.clone().multiplyScalar(dir.x));
+    up.normalize();
+    // The visible edge of a sphere of radius 1 seen from distance d is a circle of radius sqrt(1 - 1/d²)
+    // centred 1/d towards the camera.
+    const c = dir.clone().multiplyScalar(1 / d);
+    const edge = c.clone().add(up.multiplyScalar(Math.sqrt(Math.max(0, 1 - 1 / (d * d)))));
+    const toPx = (v) => {
+      const p = v.clone().project(camera);
+      return [((p.x + 1) / 2) * width(), ((1 - p.y) / 2) * height()];
+    };
+    const [x, y] = toPx(c);
+    const [ex, ey] = toPx(edge);
+    return { x, y, r: Math.hypot(ex - x, ey - y) };
+  };
+
+  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setShadows, setLayer, addSite, removeSite, markPending, moonCircle };
 }
