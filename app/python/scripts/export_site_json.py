@@ -18,7 +18,9 @@ sys.path.insert(0, PY_DIR)
 sys.path.insert(0, os.path.join(PY_DIR, "scripts"))
 
 from analysis.events import annotate_events  # noqa: E402
-from analysis.visibility import analyse, load_horizons, load_skyline, summarise  # noqa: E402
+from analysis.visibility import (  # noqa: E402
+    DEFAULT_SETTINGS, SUN_RADIUS_DEG, analyse, load_horizons, load_skyline, summarise, thresholds,
+)
 from analysis.windows import best_mission_windows, find_windows, month_starts, window_stats  # noqa: E402
 from sites import MODEL_SITE, SITE_INFO, SITE_SOURCE, SITES, SKYLINE_FILE  # noqa: E402
 
@@ -57,6 +59,13 @@ def _terrain(site):
     }
 
 
+def _queries(site, cfg):
+    """The exact Horizons query URLs used for a cached table ({"sun": url, "earth": url})."""
+    path = os.path.join(ROOT, "data", _horizons_name(site, cfg)[:-4] + ".meta.json")
+    with open(path) as f:
+        return json.load(f)["queries"]
+
+
 def _pole_distance_km(lat):
     return round(2 * 1737.4 * math.tan(math.radians(90.0 + lat) / 2), 1)
 
@@ -86,17 +95,27 @@ def _plan(year_rows):
     }
 
 
+def resolved_settings(settings=None):
+    """The full settings used, written into every payload so the page can say what "visible" meant."""
+    s = {**DEFAULT_SETTINGS, **(settings or {})}
+    thresholds(s)   # checks the values
+    return {"sun_rule": s["sun_rule"], "earth_margin_deg": float(s["earth_margin_deg"]),
+            "sun_radius_deg": SUN_RADIUS_DEG}
+
+
 def assemble_payload(site, label, description, lat, lon, skyline, month_raw, year_raw,
-                     coordinate_source, terrain, sources, is_model_site=False):
+                     coordinate_source, terrain, sources, is_model_site=False, settings=None):
     """Everything the page needs for one place, from raw inputs.
 
     Pure: data in, dict out. Used for the curated sites (below) and for typed-in
     coordinates (app/python/server/custom_point.py), so both give the page the same shape.
     month_raw / year_raw: Horizons rows (30 days hourly / 365 days 6-hourly).
     skyline: 360 angles, index = whole-degree azimuth.
+    settings: Sun rule and Earth margin (analysis.visibility.thresholds); default = Sun as a point,
+    no Earth margin. The page can re-apply other settings to the 30-day rows itself.
     """
-    month_rows = analyse(month_raw, skyline)
-    year_rows = analyse(year_raw, skyline)
+    month_rows = analyse(month_raw, skyline, settings)
+    year_rows = analyse(year_raw, skyline, settings)
     return {
         "site": site,
         "label": label,
@@ -111,8 +130,9 @@ def assemble_payload(site, label, description, lat, lon, skyline, month_raw, yea
         "summary": _round(summarise(month_rows), 1),
         "year": _round(window_stats(year_rows, YEAR["step_hours"]), 1),
         "plan": _plan(year_rows),
+        "settings": resolved_settings(settings),
         "skyline_deg": [round(v, 3) for v in skyline],  # index = whole-degree azimuth
-        "rows": [_round(r, 4) for r in annotate_events(month_rows, MONTH["step_hours"])],
+        "rows": [_round(r, 4) for r in annotate_events(month_rows, MONTH["step_hours"], settings)],
     }
 
 
@@ -148,6 +168,8 @@ def build_site_payload(site):
             "horizons_30d": _horizons_name(site, MONTH),
             "horizons_year": _horizons_name(site, YEAR),
             "skyline": SKYLINE_FILE[site],
+            # The exact Horizons queries, from the .meta.json saved next to each cached table (#6).
+            "horizons_queries": {"30d": _queries(site, MONTH), "year": _queries(site, YEAR)},
         },
         is_model_site=site == MODEL_SITE,
     )

@@ -6,8 +6,19 @@ import { planPanel } from "./planPanel.js";
 import { siteInfo } from "./siteInfo.js";
 import { statsPanel } from "./statsPanel.js";
 import { tableView } from "./tableView.js";
+import { DEFAULT_SETTINGS, SUN_RULES, applySettings, compareVerdict, settingsSentence } from "./settings.js";
 
 const MISSION_DAYS = [7, 14, 30]; // must match MISSION_DAYS in app/python/scripts/export_site_json.py
+
+// What "visible" means right now (issues #2 and #5), changed by the controls above the two scenarios.
+// Each site's 30-day rows are re-worked for these settings once and kept until the settings change.
+const view = { settings: { ...DEFAULT_SETTINGS }, cache: new Map(), slots: null, analyses: null };
+
+function rowsFor(analyses, siteId) {
+  const key = `${siteId}|${view.settings.sunRule}|${view.settings.earthMarginDeg}`;
+  if (!view.cache.has(key)) view.cache.set(key, applySettings(analyses[siteId].rows, view.settings));
+  return view.cache.get(key);
+}
 
 // ---------- small HTML builders ----------
 
@@ -137,8 +148,35 @@ function siteSourceLine(a) {
     ? `Skyline from ${MAP_NAMES[t.near_map]} out to ${t.far_range_km.toFixed(0)} km.`
     : `Skyline from ${MAP_NAMES[t.near_map]} out to ${t.near_range_km} km, then
       ${MAP_NAMES[t.far_map]} out to ${t.far_range_km.toFixed(0)} km.`;
-  return `<li><strong>${a.label}</strong>: ${a.coordinate_source}. ${maps}${edge}
+  const q = a.sources.horizons_queries;
+  const queries = q
+    ? ` Exact Horizons queries: 30 days (${queryLinks(q["30d"])}), one year (${queryLinks(q.year)}).`
+    : "";
+  return `<li><strong>${a.label}</strong>: ${a.coordinate_source}. ${maps}${edge}${queries}
     Files: <code>${a.sources.horizons_30d}</code>, <code>${a.sources.horizons_year}</code>, <code>${a.sources.skyline}</code></li>`;
+}
+
+// Links to the exact NASA JPL Horizons requests behind a site's numbers (#6). Opening one re-runs it.
+function queryLinks(q) {
+  return `<a href="${q.sun}" target="_blank" rel="noopener">Sun</a>, <a href="${q.earth}" target="_blank" rel="noopener">Earth</a>`;
+}
+
+// The controls for what "visible" means (#2, #5). They apply to the scenarios, the verdict and the table.
+function settingsControls() {
+  const rules = Object.entries(SUN_RULES)
+    .map(([key, r]) => `<option value="${key}"${key === DEFAULT_SETTINGS.sunRule ? " selected" : ""}>${r.label}</option>`)
+    .join("");
+  return `
+    <div class="settings-controls">
+      <label for="sun-rule">The Sun counts as up when</label>
+      <select id="sun-rule">${rules}</select>
+      <label for="earth-margin">Earth safety margin <output id="earth-margin-out">0.0°</output></label>
+      <input type="range" id="earth-margin" min="0" max="5" step="0.5" value="0"
+        aria-describedby="settings-note">
+      <p class="sub" id="settings-note">How far above the skyline Earth must be for a reliable radio link. These rules
+      apply to the two scenarios, the comparison and the table below; the yearly sections above use the default
+      (Sun centre above the skyline, no Earth margin).</p>
+    </div>`;
 }
 
 function sourcesPanel(analyses) {
@@ -165,8 +203,11 @@ function sourcesPanel(analyses) {
         both the Sun and Earth visible (power and a direct line to Earth). Ties go to more Sun, then more Earth, then the
         earlier date. Listed windows never overlap each other.</li>
         <li><strong>Next change</strong> (in the scenarios) is found between hourly samples by a straight-line estimate.</li>
-        <li><strong>Simplifications:</strong> the Sun is treated as a point (not a disc), and Earth has no safety margin.
-        "Visible" is yes or no; it does not yet account for how much power a low Sun gives. All times are UTC.</li>
+        <li><strong>Rules in use:</strong> <span id="settings-sentence">${settingsSentence(DEFAULT_SETTINGS)}</span>
+        Change both above the two scenarios. The yearly sections always use the default: the Sun's centre above the
+        skyline (the Sun treated as a point) and no Earth margin. The Sun's apparent radius is taken as 0.267°.</li>
+        <li><strong>Simplifications:</strong> "Visible" is yes or no; it does not yet account for how much power a low
+        Sun gives. All times are UTC.</li>
         <li><strong>Sites:</strong> the named features and their coordinates come from NASA Moon Trek (official IAU names).
         Each coordinate is the centre of the feature (for a crater, the middle of its floor), not a chosen landing spot.
         The Apollo landing sites come from NASA Moon Trek's landing-site bookmarks (the centre of each landing area).
@@ -205,6 +246,7 @@ function shell(sites, analyses, slots, plan) {
       <p>Pick a site and a time in each scenario to compare two sites, or two moments at the same site
       (30 days of hourly data).</p>
       ${legend()}
+      ${settingsControls()}
       <div class="cards">
         <section class="card">
           ${slotControls("A", sites, slots.a.site, last, slots.a.index)}
@@ -215,6 +257,8 @@ function shell(sites, analyses, slots, plan) {
           <div id="view-b"></div>
         </section>
       </div>
+      <h3>Which is better?</h3>
+      <p class="verdict" id="compare-verdict" aria-live="polite"></p>
     </section>
     ${tableSection(sites, slots.a.site)}
     ${sourcesPanel(analyses)}`;
@@ -222,10 +266,23 @@ function shell(sites, analyses, slots, plan) {
 
 function drawSlot(id, slot, analyses) {
   const analysis = analyses[slot.site];
-  const row = analysis.rows[slot.index];
+  const row = rowsFor(analyses, slot.site)[slot.index]; // visible/next change follow the current rules
   document.querySelector(`#out-${id}`).textContent = `${row.time_utc} UTC`;
   document.querySelector(`#desc-${id}`).textContent = analysis.description;
   document.querySelector(`#view-${id}`).innerHTML = skyDiagram(analysis.skyline_deg, row) + numbersPanel(row);
+  drawVerdict();
+}
+
+// The plain-language comparison of scenario A and B (#5). Redrawn whenever either one changes.
+function drawVerdict() {
+  const { slots, analyses } = view;
+  const el = document.querySelector("#compare-verdict");
+  if (!slots || !el || !analyses[slots.a.site] || !analyses[slots.b.site]) return;
+  const side = (name, slot) => {
+    const rows = rowsFor(analyses, slot.site);
+    return { name, label: analyses[slot.site].label, rows, row: rows[slot.index] };
+  };
+  el.innerHTML = compareVerdict(side("A", slots.a), side("B", slots.b));
 }
 
 async function main() {
@@ -245,6 +302,8 @@ async function main() {
     };
     const plan = { site: sites[0].id, days: 14 };
     app.innerHTML = shell(sites, analyses, slots, plan);
+    view.slots = slots;
+    view.analyses = analyses;
 
     // Planning section
     const planHolder = document.querySelector("#plan-holder");
@@ -301,9 +360,25 @@ async function main() {
 
     // Table view
     const holder = document.querySelector("#table-holder");
-    const drawTable = (siteId) => (holder.innerHTML = tableView(analyses[siteId].rows));
+    const drawTable = (siteId) => (holder.innerHTML = tableView(rowsFor(analyses, siteId)));
     document.querySelector("#table-site").addEventListener("change", (e) => drawTable(e.target.value));
     drawTable(slots.a.site);
+
+    // The rules for "visible" (#2, #5): re-work both scenarios, the verdict and the table.
+    const onSettings = () => {
+      view.settings = {
+        sunRule: document.querySelector("#sun-rule").value,
+        earthMarginDeg: Number(document.querySelector("#earth-margin").value),
+      };
+      view.cache.clear();
+      document.querySelector("#earth-margin-out").textContent = `${view.settings.earthMarginDeg.toFixed(1)}°`;
+      document.querySelector("#settings-sentence").textContent = settingsSentence(view.settings);
+      drawSlot("a", slots.a, analyses);
+      drawSlot("b", slots.b, analyses);
+      drawTable(document.querySelector("#table-site").value);
+    };
+    document.querySelector("#sun-rule").addEventListener("change", onSettings);
+    document.querySelector("#earth-margin").addEventListener("input", onSettings);
 
     // Any point on the Moon (clicked on the globe or typed in): ask the backend, then add the point
     // to the globe and the page like any other site.

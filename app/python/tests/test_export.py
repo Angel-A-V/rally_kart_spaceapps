@@ -45,7 +45,10 @@ class SitePayload(unittest.TestCase):
             self.assertIn(key, row)
 
     def test_sources_name_all_three_files(self):
-        self.assertEqual(set(self.ridge["sources"]), {"horizons_30d", "horizons_year", "skyline"})
+        self.assertEqual(set(self.ridge["sources"]), {"horizons_30d", "horizons_year", "skyline", "horizons_queries"})
+        # #6: the exact Horizons queries for both cached tables, Sun and Earth
+        for span in ("30d", "year"):
+            self.assertEqual(set(self.ridge["sources"]["horizons_queries"][span]), {"sun", "earth"})
 
     def test_crater_floor_is_never_lit(self):
         self.assertEqual(self.floor["summary"]["sun_visible_pct"], 0.0)

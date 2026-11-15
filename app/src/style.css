@@ -93,6 +93,13 @@ h4 { font-size: 0.95rem; margin: 0 0 6px; }
 .dot.picked { background: #fff; border: 2px solid var(--text-2); }
 @media (max-width: 760px) { .globe-layout { grid-template-columns: 1fr; } .globe-wrap { height: 340px; } }
 
+/* Visibility rules above the two scenarios (#2, #5) */
+.settings-controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 12px 0; }
+.settings-controls label { font-weight: 600; }
+.settings-controls select { font: inherit; padding: 4px 6px; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); }
+.settings-controls output { font-weight: 400; color: var(--text-2); margin-left: 6px; }
+.settings-controls .sub { flex-basis: 100%; margin: 0; }
+
 /* Analyse your own point */
 .card.custom { margin-bottom: 24px; }
 .custom-form { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 8px 0; }

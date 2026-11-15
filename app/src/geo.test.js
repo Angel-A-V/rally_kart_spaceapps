@@ -1,4 +1,4 @@
-// Tests for geo.js. Run from app/:  node --test src/
+// Tests for geo.js. Run from app/:  node --test src/*.test.js
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { latLonToXyz, xyzToLatLon, tileGrid, tileUrl } from "./geo.js";

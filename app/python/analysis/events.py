@@ -14,7 +14,7 @@ _EVENT_NAMES = {
 }
 
 
-def next_event(rows, index, body, step_hours=1.0):
+def next_event(rows, index, body, step_hours=1.0, threshold=0.0):
     """Time from row `index` until `body` ("sun" or "earth") next sets or rises.
 
     Returns a dict:
@@ -42,8 +42,10 @@ def next_event(rows, index, body, step_hours=1.0):
 
     for j in range(index + 1, len(rows)):
         if rows[j][visible_key] != start_visible:
-            before = rows[j - 1][margin_key]   # still on the starting side (or exactly 0)
-            after = rows[j][margin_key]        # on the other side
+            # The change happens where the margin crosses the threshold the rows were analysed with
+            # (0 by default; see analysis.visibility.thresholds).
+            before = rows[j - 1][margin_key] - threshold   # still on the starting side (or exactly 0)
+            after = rows[j][margin_key] - threshold        # on the other side
             fraction = before / (before - after)  # 0..1: how far between the two samples
             hours = ((j - 1 - index) + fraction) * step_hours
             return {
@@ -61,18 +63,21 @@ def next_event(rows, index, body, step_hours=1.0):
     }
 
 
-def annotate_events(rows, step_hours=1.0):
+def annotate_events(rows, step_hours=1.0, settings=None):
     """Copy of `rows` with the next Sun and Earth event added to every row.
 
     New keys per body (sun_ or earth_): event (name of the next change), event_hours
     (hours until it, or None if it does not happen inside the data), window_hours
     (hours of data left after this row).
+    settings: the same settings the rows were analysed with (analysis.visibility.thresholds).
     """
+    from analysis.visibility import thresholds
+    needed = dict(zip(("sun", "earth"), thresholds(settings)))
     out = []
     for i, row in enumerate(rows):
         new = dict(row)
         for body in ("sun", "earth"):
-            e = next_event(rows, i, body, step_hours)
+            e = next_event(rows, i, body, step_hours, needed[body])
             new[f"{body}_event"] = e["event"]
             new[f"{body}_event_hours"] = e["hours"]
             new[f"{body}_window_hours"] = e["window_hours"]

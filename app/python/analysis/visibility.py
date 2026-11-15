@@ -53,12 +53,42 @@ def load_horizons(path):
     return rows
 
 
-def analyse(horizons_rows, skyline):
+# The Sun's apparent radius seen from the Earth-Moon system: about 16 arcminutes (it varies by about
+# 1.7% over the year as our distance from the Sun changes). Used by the Sun rules below.
+SUN_RADIUS_DEG = 0.2666
+
+# When does the Sun count as "up"? The margin it needs above the skyline, in degrees.
+#   centre      its centre is above the skyline (the Sun treated as a point; the default)
+#   any_part    any part of the disc shows: the top edge is above the skyline (first light)
+#   whole_disc  the whole disc is above the skyline (full sunlight on a solar panel)
+SUN_RULES = {"centre": 0.0, "any_part": -SUN_RADIUS_DEG, "whole_disc": SUN_RADIUS_DEG}
+
+# The default settings reproduce the original results exactly.
+DEFAULT_SETTINGS = {"sun_rule": "centre", "earth_margin_deg": 0.0}
+
+
+def thresholds(settings=None):
+    """Settings -> (margin the Sun needs, margin Earth needs), in degrees above the skyline.
+
+    settings: {"sun_rule": one of SUN_RULES, "earth_margin_deg": >= 0}. Missing keys use the defaults.
+    earth_margin_deg is a safety margin: Earth must be at least that far above the skyline, because a
+    radio link grazing the terrain is unreliable.
+    """
+    s = {**DEFAULT_SETTINGS, **(settings or {})}
+    if s["sun_rule"] not in SUN_RULES:
+        raise ValueError(f"sun_rule must be one of {sorted(SUN_RULES)}, got {s['sun_rule']!r}")
+    if s["earth_margin_deg"] < 0:
+        raise ValueError("earth_margin_deg must be 0 or more")
+    return SUN_RULES[s["sun_rule"]], float(s["earth_margin_deg"])
+
+
+def analyse(horizons_rows, skyline, settings=None):
     """Add skyline, margin and visible yes/no for the Sun and for Earth to every row.
 
-    Simplification (also stated on the site): the Sun is treated as a point, not a disc,
-    and Earth gets no safety margin.
+    settings: see thresholds(). The default treats the Sun as a point and gives Earth no
+    safety margin (also stated on the site).
     """
+    needed = dict(zip(("sun", "earth"), thresholds(settings)))
     out = []
     for r in horizons_rows:
         row = dict(r)
@@ -67,7 +97,7 @@ def analyse(horizons_rows, skyline):
             margin = r[f"{body}_el_deg"] - sky
             row[f"{body}_skyline_deg"] = sky
             row[f"{body}_margin_deg"] = margin
-            row[f"{body}_visible"] = margin > 0
+            row[f"{body}_visible"] = margin > needed[body]
         row["both_visible"] = row["sun_visible"] and row["earth_visible"]
         out.append(row)
     return out
