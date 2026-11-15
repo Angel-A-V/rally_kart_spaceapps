@@ -18,6 +18,8 @@ R_KM = 1737.4
 
 # Named features near the south pole to offer on the website. Add a name and re-run.
 FEATURES = ["Shackleton", "de Gerlache", "Haworth", "Nobile", "Mons Mouton", "Malapert", "Cabeus"]
+# Past landing sites, stored in Moon Trek as "bookmark" items (a small box around the landing area).
+LANDING_SITES = ["Apollo 11", "Apollo 12", "Apollo 14", "Apollo 15", "Apollo 16", "Apollo 17"]
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 OUT = os.path.join(ROOT, "data", "sites_moontrek.json")
@@ -46,32 +48,52 @@ def pick_feature(docs, name):
     raise LookupError(f"Moon Trek has no named feature called {name!r}")
 
 
-def search_url(name):
-    query = {"start": 0, "rows": 25, "key": name, "facetKeys": "itemType", "facetValues": "nomenclature"}
+def pick_landing_site(docs, name):
+    """Find the landing-site bookmark called exactly `name` (e.g. "Apollo 11") -> (lat_deg, east_lon_deg).
+
+    Moon Trek stores past landing sites as "bookmark" items whose box surrounds the landing area;
+    the centre of that box is the landing point (Apollo 11: 0.671 N, 23.484 E).
+    """
+    for doc in docs:
+        if doc.get("itemType") == "bookmark" and (doc.get("title") or "").lower() == name.lower():
+            west, south, east, north = (float(v) for v in doc["bbox"].split(","))
+            return (south + north) / 2, ((west + east) / 2) % 360
+    raise LookupError(f"Moon Trek has no landing-site bookmark called {name!r}")
+
+
+def search_url(name, item_type="nomenclature"):
+    if item_type == "bookmark":
+        query = {"start": 0, "rows": 40, "q": name}
+    else:
+        query = {"start": 0, "rows": 25, "key": name, "facetKeys": "itemType", "facetValues": item_type}
     return API + "?" + urllib.parse.urlencode(query)
 
 
-def search(name):
-    with urllib.request.urlopen(search_url(name), timeout=60) as r:
+def search(name, item_type="nomenclature"):
+    with urllib.request.urlopen(search_url(name, item_type), timeout=60) as r:
         return json.load(r)["response"]["docs"]
 
 
 def main():
     sites = []
-    for name in FEATURES:
-        lat, lon = pick_feature(search(name), name)
+    lookups = [(n, "feature", "nomenclature", pick_feature) for n in FEATURES]
+    lookups += [(n, "landing_site", "bookmark", pick_landing_site) for n in LANDING_SITES]
+    for name, kind, item_type, pick in lookups:
+        lat, lon = pick(search(name, item_type), name)
         sites.append({
             "id": slug(name),
             "name": name,
+            "kind": kind,
             "lat_deg": round(lat, 6),
             "lon_deg_east": round(lon, 6),
             "pole_distance_km": round(pole_distance_km(lat), 1),
-            "query": search_url(name),
+            "query": search_url(name, item_type),
         })
         print(f"{name:12s} lat {lat:9.4f}  lon_E {lon:9.4f}  {pole_distance_km(lat):6.1f} km from the pole")
     payload = {
-        "source": "NASA Moon Trek search service (IAU nomenclature), https://trek.nasa.gov/moon/",
-        "note": "Each coordinate is the centre of the named feature, not a chosen landing spot.",
+        "source": "NASA Moon Trek search service (IAU nomenclature and landing-site bookmarks), https://trek.nasa.gov/moon/",
+        "note": "Named features: the centre of the feature, not a chosen landing spot. "
+                "Landing sites: the centre of Moon Trek's bookmark box around the landing area.",
         "retrieved_utc": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d"),
         "sites": sites,
     }

@@ -21,3 +21,25 @@ export function loadSites() {
 export function loadSiteAnalysis(id) {
   return getJson(`${id}_analysis.json`);
 }
+
+// Any point on the Moon, analysed live by the Python backend (app/python/server/app.py).
+// Returns { site, analysis }: `site` has the shape of one sites.json entry and `analysis`
+// the shape of a <site>_analysis.json file, so the rest of the page treats it like any site.
+export async function loadCustomPoint(lat, lon) {
+  const url = `/api/custom?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+  let response;
+  try {
+    response = await fetch(url);
+  } catch {
+    throw new Error("Could not reach the backend.");
+  }
+  const body = await response.json().catch(() => null); // null if the reply is not JSON
+  if (!body) {
+    // Usually Vite's proxy answering because nothing is listening on port 8000.
+    throw new Error("The backend is not running. Start it with: .venv/bin/python app/python/server/app.py");
+  }
+  if (!response.ok) {
+    throw new Error(body.error || `HTTP ${response.status}`);
+  }
+  return body;
+}

@@ -146,7 +146,7 @@ Run Steps 2 to 5 for (site A, time A) and (site B, time B). Return both result s
 
 **Dependency rule:** the analysis core (5) must never import the server (7) or the hardware link (9). That is what keeps the hard rule true: *the software works fully without the hardware.*
 
-### Decision A: Python server flavour (needs a team decision)
+### Decision A: Python server flavour (DECIDED 2026-11-14: Flask, `app/python/server/app.py`)
 | Option | Pro | Con |
 |---|---|---|
 | Standard library `http.server` | Zero installs, everything visible | We write routing and JSON headers ourselves |
@@ -172,6 +172,8 @@ Run Steps 2 to 5 for (site A, time A) and (site B, time B). Return both result s
 ---
 
 ## 5. Proposed server interface (the contract the web app relies on)
+
+**Built (2026-11-14):** `GET /api/health` and `GET /api/custom?lat=..&lon=..` (any point on the Moon; live Horizons, LOLA skyline near the pole when the maps are downloaded, else a labelled flat horizon; cached in `data/custom/`). It returns `{site, analysis}` in the same shape as `sites.json` entries and `<site>_analysis.json`, built by the same `assemble_payload()`. The curated sites still load from static JSON. The rows below are still proposals.
 
 All answers JSON. `t` is UTC ISO time. [PROPOSED, names can change]
 
@@ -259,7 +261,7 @@ The challenge asks for "a curated list of notable landing sites – such as past
 | Piece | Whole Moon today? |
 |---|---|
 | Sun and Earth direction (Horizons) | **Yes.** `coord@301` accepts any latitude and longitude. Browsers cannot call Horizons directly (no CORS header, section 5d), so a Python go-between is needed. |
-| Terrain skyline (our LOLA map) | **No, south pole only.** The map is `LDEM_85S_20M` (85°S to the pole). We only downloaded a ±50 km band and each ray looks out 35 km, so sites must be within about 15 km of the pole. The skyline math is fine; the data coverage is the limit. |
+| Terrain skyline (LOLA maps) | **Yes (2026-11-14).** Whole-Moon map `LDEM_128` (128 px/deg, ~237 m/px; the same data as Moon Trek's "LRO LOLA DEM"), read by `make_skyline.skyline_global`. The finer polar maps (`LDEM_85S_20M`, `LDEM_80S_40M`) are still preferred near the south pole when downloaded. Checked against the polar-map skylines of all 8 curated sites (correlation 0.83 to 1.00). |
 | The physical model | One site by design. |
 
 ### Terrain layers, best available first
@@ -294,7 +296,7 @@ app/                         ALL CODE LIVES HERE (decided 2026-11-14); everythin
   python/analysis/           the pure calculation core            (EXISTS: visibility.py)
   python/scripts/            offline data jobs (fetch_horizons, make_skyline, sites, export_site_json)
   python/tests/              unittest checks
-  python/server/             web server + API routes              (not created yet)
+  python/server/             Flask backend: app.py (routes), custom_point.py (typed-in coordinates)
   sketch/                    Arduino sketch                       (not created yet)
 data/                        shared cached CSV, JSON, meta (team data; code reads it from here)
 ```
@@ -364,7 +366,7 @@ First rough results over a year at the pick (Sun as a point, Earth with no margi
 
 ## 8. Open decisions for the team
 
-1. Flask, standard library, or FastAPI (Decision A)?
+1. ~~Flask, standard library, or FastAPI (Decision A)?~~ Decided: Flask.
 2. Python computes or browser computes (Decision B)?
 3. Which 3 to 5 sites, with verified coordinates? Each costs one Horizons fetch plus one skyline run.
 4. Date range the picker supports. The cache covers 365 days from 2026-11-10. Beyond that we either fetch more or limit the picker.

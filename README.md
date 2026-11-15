@@ -10,13 +10,16 @@ Start with `CLAUDE.md` (short project brief) and `docs/context-handoff.md` (full
 
 ## Setup
 
-You need Python 3.10+ and numpy.
+You need Python 3.10+, numpy and Flask (Flask only for the backend).
 
 ```
-# Ubuntu / WSL (simplest)
-sudo apt install python3-numpy
+# Mac or anywhere (recommended): a project virtual environment, git-ignored
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
-# or anywhere
+# Ubuntu / WSL / Arduino UNO Q
+sudo apt install python3-numpy python3-flask
+
+# or without a virtual environment
 python3 -m pip install --user -r requirements.txt
 # if pip says "externally-managed-environment":
 #   python3 -m pip install --user --break-system-packages -r requirements.txt
@@ -49,6 +52,25 @@ python3 scripts/export_site_json.py
 ```
 
 Writes `app/public/data/sites.json` and one `<site>_analysis.json` per site. Run it again after changing the data or the analysis code. Then `cd app && npm install && npm run dev`.
+
+## Run the backend (custom coordinates)
+
+The website works without it, but the "Analyse your own point" card needs it.
+Two terminals, from the repo root:
+
+```
+.venv/bin/python app/python/server/app.py     # backend on http://127.0.0.1:8000
+cd app && npm run dev                          # website; Vite forwards /api to the backend
+```
+
+`GET /api/custom?lat=..&lon=..` asks NASA JPL Horizons live (a few seconds) and answers in the same
+shape as the curated sites' JSON. Answers are cached in `data/custom/` (git-ignored), so a point asked
+before works offline. The skyline is real LOLA terrain anywhere on the Moon once the whole-Moon map is
+downloaded (2.1 GB, once): `python3 app/python/scripts/make_skyline.py --grid LDEM_128`. Near the south pole
+the finer polar maps are used instead when they are downloaded too (`make_skyline.py`, about 610 MB).
+With no map at all, the page says it is using a flat horizon. `GET /api/health` shows which maps are present.
+On the UNO Q, run `npm run build` first and start the backend with `HOST=0.0.0.0`: it then serves the
+whole site on port 8000.
 
 ## Get the Sun and Earth directions (NASA JPL Horizons)
 

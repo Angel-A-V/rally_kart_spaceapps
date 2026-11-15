@@ -1,0 +1,18 @@
+{
+  "site": "blue_ghost_m1",
+  "lat_deg": 18.5623,
+  "lon_deg_east": 61.8103,
+  "site_height_m_above_1737.4km_sphere": -3650.2640089600013,
+  "azimuth": "0 = north, 90 = east, step 1.0 deg",
+  "max_range_km": 250.0,
+  "near_map": "LDEM_128",
+  "near_range_km": 35.0,
+  "far_map": "LDEM_128",
+  "far_range_km": 250.0,
+  "far_range_limited_by_map_edge": false,
+  "skyline_min_deg": -0.20466748348865912,
+  "skyline_max_deg": 2.2698967797990988,
+  "skyline_mean_deg": 0.4699086586649069,
+  "terrain_map": "LDEM_128",
+  "source": "NASA LRO LOLA LDEM_128 (PDS Geosciences Node GDR, 128 pixels per degree; the same map as Moon Trek's LRO LOLA DEM)"
+}

@@ -88,8 +88,20 @@ h4 { font-size: 0.95rem; margin: 0 0 6px; }
 .globe-info p { margin-bottom: 10px; }
 .dot.named { background: #3987e5; }
 .dot.model { background: #eb6834; }
+.dot.custom { background: #2fbf71; }
+.dot.pending { background: #ffd23f; }
 .dot.picked { background: #fff; border: 2px solid var(--text-2); }
 @media (max-width: 760px) { .globe-layout { grid-template-columns: 1fr; } .globe-wrap { height: 340px; } }
+
+/* Analyse your own point */
+.card.custom { margin-bottom: 24px; }
+.custom-form { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 8px 0; }
+.custom-form label { font-weight: 600; }
+.custom-form input { font: inherit; width: 9em; padding: 4px 6px; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); }
+.custom-form button { font: inherit; padding: 4px 14px; cursor: pointer; }
+.custom-form button:disabled { cursor: progress; opacity: 0.6; }
+#custom-status:empty { display: none; }
+.remove-point { font: inherit; margin-top: 8px; padding: 4px 12px; cursor: pointer; }
 
 /* Plan a mission */
 .card.plan { margin-bottom: 24px; }

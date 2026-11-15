@@ -130,6 +130,24 @@ def destination(lat, lon, az, dist):
     return np.degrees(la2), np.degrees(lo2)
 
 
+def _walk_rays(height_at, h_site, lat, lon, step_deg, d):
+    """The skyline itself, for any terrain map.
+
+    For each azimuth, walk outward along the ground (distances `d`, metres), ask
+    height_at(lats, lons, az) for the terrain heights there, and keep the steepest angle.
+    Same maths for every map; only the height lookup differs.
+    """
+    out = []
+    theta = d / R   # angle at the Moon's centre; accounts for curvature exactly
+    for az in np.arange(0, 360, step_deg):
+        la2, lo2 = destination(lat, lon, az, d)
+        ht = height_at(la2, lo2, az)
+        up = (R + ht) * np.cos(theta) - (R + h_site)
+        out_ = (R + ht) * np.sin(theta)
+        out.append((az, float(np.degrees(np.arctan2(up, out_)).max())))
+    return out
+
+
 def skyline(h, lat, lon, step_deg=1.0, max_km=35.0, step_m=40.0, mast_m=0.0, grid=None, min_m=None):
     scale = 1.0 if grid is None else grid.scale   # the 85S band is already in metres
     row, col = to_pixel(lat, lon, grid)
@@ -138,18 +156,87 @@ def skyline(h, lat, lon, step_deg=1.0, max_km=35.0, step_m=40.0, mast_m=0.0, gri
     h_site = sample(h, np.array(row), np.array(col)) * scale + mast_m
     # min_m: nearest terrain looked at (default: one step). Used to compare maps beyond the near field.
     d = np.arange(step_m if min_m is None else min_m, max_km * 1000, step_m)
-    out = []
-    for az in np.arange(0, 360, step_deg):
-        la2, lo2 = destination(lat, lon, az, d)
+
+    def height_at(la2, lo2, az):
         r, c = to_pixel(la2, lo2, grid)
         if grid is not None:
             _check_inside(h, r, c, f"a {max_km} km ray from ({lat}, {lon}) toward azimuth {az}")
-        ht = sample(h, r, c) * scale
-        theta = d / R   # angle at the Moon's centre; accounts for curvature exactly
-        up = (R + ht) * np.cos(theta) - (R + h_site)
-        out_ = (R + ht) * np.sin(theta)
-        out.append((az, float(np.degrees(np.arctan2(up, out_)).max())))
-    return out, float(h_site)
+        return sample(h, r, c) * scale
+
+    return _walk_rays(height_at, h_site, lat, lon, step_deg, d), float(h_site)
+
+
+# ---------- The whole-Moon map: LDEM_128 (simple cylindrical, 128 pixels per degree) ----------
+# Same NASA LOLA data as Moon Trek's "LRO LOLA DEM" (LRO_LOLA_DEM_Global_128ppd_v04).
+# Layout from its label (https://imbrium.mit.edu/DATA/LOLA_GDR/CYLINDRICAL/IMG/LDEM_128.LBL):
+#   23040 rows x 46080 columns, 16-bit little-endian, height (m) = number * 0.5 above the 1737.4 km
+#   sphere (the same units as the polar maps). Row 0 is the top (90 N), column 0 starts at 0 E,
+#   east positive. About 237 m per pixel at the equator.
+GLOBAL_PPD = 128
+GLOBAL_ROWS, GLOBAL_COLS = 180 * GLOBAL_PPD, 360 * GLOBAL_PPD
+GLOBAL_SCALE = 0.5
+GLOBAL_URL = "https://imbrium.mit.edu/DATA/LOLA_GDR/CYLINDRICAL/IMG/LDEM_128.IMG"
+GLOBAL_PATH = os.path.join(ROOT, "data", "raw", "LDEM_128.IMG")
+GLOBAL_STEP_M = 118.0   # half a pixel at the equator: no terrain pixel is skipped along a ray
+GRID_SOURCE["LDEM_128"] = ("NASA LRO LOLA LDEM_128 (PDS Geosciences Node GDR, 128 pixels per degree; "
+                           "the same map as Moon Trek's LRO LOLA DEM)")
+
+
+def to_pixel_global(lat, lon, ppd=GLOBAL_PPD):
+    """Latitude/longitude -> fractional (row, col) on the whole-Moon map.
+
+    Whole numbers are pixel centres. The label puts the equator at row 11519.5 and 180 E at
+    column 23039.5 (its LINE/SAMPLE_PROJECTION_OFFSET), which this reproduces.
+    """
+    return (90.0 - lat) * ppd - 0.5, (np.asarray(lon) % 360.0) * ppd - 0.5
+
+
+def sample_global(h, row, col):
+    """Bilinear height lookup on the whole-Moon map (raw numbers; multiply by GLOBAL_SCALE).
+
+    Longitude wraps: the pixel right of the last column is column 0. Within half a pixel of
+    a pole there is no row beyond the edge, so the edge row is used.
+    """
+    rows, cols = h.shape
+    row = np.clip(row, 0.0, rows - 1 - 1e-9)
+    r0, c0 = np.floor(row).astype(int), np.floor(col).astype(int)
+    fr, fc = row - r0, col - c0
+    c0 = c0 % cols
+    c1 = (c0 + 1) % cols
+    return (h[r0, c0] * (1 - fr) * (1 - fc) + h[r0, c1] * (1 - fr) * fc
+            + h[r0 + 1, c0] * fr * (1 - fc) + h[r0 + 1, c1] * fr * fc)
+
+
+def global_present():
+    """Is the whole-Moon map downloaded and complete? Never downloads anything."""
+    return os.path.exists(GLOBAL_PATH) and os.path.getsize(GLOBAL_PATH) == GLOBAL_ROWS * GLOBAL_COLS * 2
+
+
+def load_global(download=False):
+    """Open the whole-Moon map without reading it into memory (2.1 GB). Downloads only if asked."""
+    if not global_present():
+        if not download:
+            raise FileNotFoundError(f"{GLOBAL_PATH} is missing or incomplete; run make_skyline.py --grid LDEM_128")
+        os.makedirs(os.path.dirname(GLOBAL_PATH), exist_ok=True)
+        print("downloading the whole-Moon terrain map LDEM_128 (~2.1 GB)...")
+        with urllib.request.urlopen(GLOBAL_URL) as r, open(GLOBAL_PATH, "wb") as f:
+            while chunk := r.read(1 << 20):
+                f.write(chunk)
+    return np.memmap(GLOBAL_PATH, dtype="<i2", mode="r", shape=(GLOBAL_ROWS, GLOBAL_COLS))
+
+
+def skyline_global(h, lat, lon, step_deg=1.0, max_km=250.0, step_m=GLOBAL_STEP_M, mast_m=0.0,
+                   ppd=GLOBAL_PPD, scale=GLOBAL_SCALE):
+    """Skyline anywhere on the Moon from a whole-Moon (cylindrical) map. Returns (profile, site_height_m)."""
+    row, col = to_pixel_global(lat, lon, ppd)
+    h_site = float(sample_global(h, np.array(row), np.array(col))) * scale + mast_m
+    d = np.arange(step_m, max_km * 1000, step_m)
+
+    def height_at(la2, lo2, az):
+        r, c = to_pixel_global(la2, lo2, ppd)
+        return sample_global(h, r, c) * scale
+
+    return _walk_rays(height_at, h_site, lat, lon, step_deg, d), h_site
 
 
 NEAR_KM = 35.0      # near field: the finest map, 40 m steps
@@ -191,12 +278,26 @@ def site_skyline(grid_name, lat, lon, step_deg=1.0):
     return combine(near, far), h_site, info
 
 
+def global_site_skyline(lat, lon, step_deg=1.0, download=False):
+    """The skyline for any point on the Moon from the whole-Moon map, out to FAR_CAP_KM.
+    Coarser than the polar maps (about 237 m per pixel) but covers everywhere.
+    Returns (profile, site_height_m, info) like site_skyline()."""
+    prof, h_site = skyline_global(load_global(download), lat, lon, step_deg, FAR_CAP_KM)
+    info = {
+        "near_map": "LDEM_128", "near_range_km": NEAR_KM,
+        "far_map": "LDEM_128", "far_range_km": FAR_CAP_KM,
+        "far_range_limited_by_map_edge": False,
+    }
+    return prof, h_site, info
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--site", default="shackleton_rim", choices=SITES)
     ap.add_argument("--step-deg", type=float, default=1.0)
     ap.add_argument("--max-km", type=float, default=35.0)
-    ap.add_argument("--grid", choices=["85S_20M", *GRIDS], help="terrain map (default: the site's map in sites.py)")
+    ap.add_argument("--grid", choices=["85S_20M", *GRIDS, "LDEM_128"],
+                    help="terrain map (default: the site's map in sites.py). LDEM_128 = the whole-Moon map")
     ap.add_argument("--model-wall", action="store_true",
                     help="rebuild the ORIGINAL 35 km skyline of the model site that the printed wall uses "
                          "(data/skyline_shackleton_rim.csv) instead of the website's extended one")
@@ -212,6 +313,11 @@ def main():
         h = np.fromfile(RAW, dtype="<i2").reshape(BAND_ROWS, N) * 0.5
         prof, h_site = skyline(h, lat, lon, a.step_deg, a.max_km)
         out_name = f"skyline_{a.site}.csv"
+    elif grid_name == "LDEM_128":
+        prof, h_site, info = global_site_skyline(lat, lon, a.step_deg, download=True)
+        # A site outside the polar maps (e.g. Apollo 11) uses this as its website skyline. For a polar
+        # site, asking for LDEM_128 is a comparison run and must never overwrite the polar-map skyline.
+        out_name = SKYLINE_FILE[a.site] if SITE_GRID[a.site] == "LDEM_128" else f"skyline_{a.site}_global.csv"
     else:
         prof, h_site, info = site_skyline(grid_name, lat, lon, a.step_deg)
         out_name = SKYLINE_FILE[a.site]

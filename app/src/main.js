@@ -1,5 +1,5 @@
 import "./style.css";
-import { loadSites, loadSiteAnalysis } from "./data.js";
+import { loadCustomPoint, loadSites, loadSiteAnalysis } from "./data.js";
 import { skyDiagram } from "./skyDiagram.js";
 import { numbersPanel } from "./numbersPanel.js";
 import { planPanel } from "./planPanel.js";
@@ -65,18 +65,21 @@ function legend() {
 function globeSection() {
   return `
     <section class="card globe-card">
-      <h2>Where are the sites?</h2>
+      <h2>Pick any point on the Moon</h2>
       <div class="globe-layout">
         <div>
           <div id="globe" class="globe-wrap"></div>
           <div class="globe-controls">
             <button type="button" id="view-pole">South pole view</button>
             <button type="button" id="view-moon">Whole Moon</button>
-            <span class="sub">Drag to turn, scroll to zoom, click a marker to analyse that site.</span>
+            <span class="sub">Drag to turn, scroll to zoom. <strong>Click anywhere on the surface</strong> to analyse
+            that spot with real terrain, or click a marker to open that site.</span>
           </div>
           <ul class="legend">
             <li><span class="dot named"></span> Named feature (NASA Moon Trek)</li>
             <li><span class="dot model"></span> Model site</li>
+            <li><span class="dot custom"></span> Your points</li>
+            <li><span class="dot pending"></span> Working on it</li>
             <li><span class="dot picked"></span> Selected</li>
           </ul>
         </div>
@@ -85,15 +88,56 @@ function globeSection() {
     </section>`;
 }
 
+// The "analyse your own point" card. The form is built once; results go to #custom-status.
+function customSection() {
+  return `
+    <section class="card custom">
+      <h2>Or type coordinates</h2>
+      <p class="sub">Any latitude and longitude on the Moon. The backend asks NASA JPL Horizons live
+      (a few seconds the first time), builds the skyline from NASA LOLA terrain, and adds the point to the
+      3D Moon and every site picker on this page.</p>
+      <form id="custom-form" class="custom-form">
+        <label for="custom-lat">Latitude</label>
+        <input id="custom-lat" type="number" step="any" min="-90" max="90" required placeholder="-89.5">
+        <label for="custom-lon">Longitude (° E)</label>
+        <input id="custom-lon" type="number" step="any" required placeholder="200">
+        <button type="submit" id="custom-go">Analyse</button>
+      </form>
+      <p class="sub">Examples: Apollo 11 area 0.674, 23.473 · near the south pole -89.5, 200.
+      South is negative; west longitudes like -156.3 also work.</p>
+      <p id="custom-status" role="status" aria-live="polite"></p>
+    </section>`;
+}
+
+// Sources line for a typed-in point: live Horizons queries, and whether a real skyline exists.
+function customSourceLine(a) {
+  const q = (span) => `<a href="${a.sources.horizons_queries[span].sun}">Sun</a>,
+    <a href="${a.sources.horizons_queries[span].earth}">Earth</a>`;
+  const sky = a.horizon === "flat"
+    ? "<strong>flat horizon (0°)</strong>: no downloaded terrain map covers this point, so real terrain is not counted"
+    : `LOLA terrain, computed on request (${a.terrain.near_map} near, ${a.terrain.far_map} out to ${a.terrain.far_range_km.toFixed(0)} km)`;
+  return `<li data-site="${a.site}"><strong>${a.label}</strong>: ${a.coordinate_source}. Skyline: ${sky}.
+    Live Horizons queries: 30 days (${q("30d")}), one year (${q("year")}).</li>`;
+}
+
+const MAP_NAMES = {
+  "85S_20M": "LDEM_85S_20M (20 m per pixel)",
+  "80S_40M": "LDEM_80S_40M (40 m per pixel)",
+  LDEM_128: "the whole-Moon map LDEM_128 (about 237 m per pixel)",
+};
+
 // One line of the sources panel per site: where its coordinate and its terrain came from.
 function siteSourceLine(a) {
+  if (a.horizon) return customSourceLine(a); // typed-in points have no cached files
   const t = a.terrain;
-  const near = t.near_map === "85S_20M" ? "LDEM_85S_20M (20 m per pixel)" : "LDEM_80S_40M (40 m per pixel)";
   const edge = t.far_range_limited_by_map_edge
     ? " This is as far as the terrain map reaches from this site, so even more distant mountains are not counted."
     : "";
-  return `<li><strong>${a.label}</strong>: ${a.coordinate_source}. Skyline from ${near} out to ${t.near_range_km} km, then
-    LDEM_80S_40M out to ${t.far_range_km.toFixed(0)} km.${edge}
+  const maps = t.near_map === t.far_map
+    ? `Skyline from ${MAP_NAMES[t.near_map]} out to ${t.far_range_km.toFixed(0)} km.`
+    : `Skyline from ${MAP_NAMES[t.near_map]} out to ${t.near_range_km} km, then
+      ${MAP_NAMES[t.far_map]} out to ${t.far_range_km.toFixed(0)} km.`;
+  return `<li><strong>${a.label}</strong>: ${a.coordinate_source}. ${maps}${edge}
     Files: <code>${a.sources.horizons_30d}</code>, <code>${a.sources.horizons_year}</code>, <code>${a.sources.skyline}</code></li>`;
 }
 
@@ -106,9 +150,10 @@ function sourcesPanel(analyses) {
         <li><strong>Sun and Earth directions:</strong> NASA JPL Horizons, asked as an observer standing on the Moon at each site.
         Horizons includes the Moon's wobble (libration).</li>
         <li><strong>Skyline:</strong> built from NASA LRO LOLA terrain heights. For each of 360 compass directions we look
-        outward and record the steepest terrain angle. Near terrain (to 35 km) comes from the finest map that covers the
-        site; far terrain comes from the 40 m map, out to 250 km or the edge of that map. Distant mountains matter: at
-        the model site they raise the skyline by up to about 1.5° in some directions.</li>
+        outward and record the steepest terrain angle. Near the south pole, near terrain (to 35 km) comes from the finest
+        map that covers the site and far terrain from the 40 m map, out to 250 km or the edge of that map. Everywhere
+        else (for example the Apollo sites) the whole-Moon map LDEM_128 is used out to 250 km. Distant mountains matter:
+        at the model site they raise the skyline by up to about 1.5° in some directions.</li>
         <li><strong>Moon picture:</strong> NASA LRO wide-angle camera global mosaic, loaded live from NASA Moon Trek's
         tile service. The stars behind it are decoration, not a real star map.</li>
         <li><strong>Visible</strong> means the body's angle above a flat horizon is greater than the skyline in its direction.
@@ -124,9 +169,10 @@ function sourcesPanel(analyses) {
         "Visible" is yes or no; it does not yet account for how much power a low Sun gives. All times are UTC.</li>
         <li><strong>Sites:</strong> the named features and their coordinates come from NASA Moon Trek (official IAU names).
         Each coordinate is the centre of the feature (for a crater, the middle of its floor), not a chosen landing spot.
-        The model site is a point found from LOLA terrain data. None of these is an official landing site.</li>
+        The Apollo landing sites come from NASA Moon Trek's landing-site bookmarks (the centre of each landing area).
+        The model site is a point found from LOLA terrain data.</li>
         <li><strong>Each site</strong> (coordinate source, terrain maps, and the 30-day, one-year and skyline files):
-          <ul>${files}</ul>
+          <ul id="source-files">${files}</ul>
         </li>
       </ul>
     </details>`;
@@ -147,9 +193,11 @@ function shell(sites, analyses, slots, plan) {
   const last = analyses[sites[0].id].rows.length - 1;
   return `
     <h1>Lunar Landing Site Navigator</h1>
-    <p class="intro">Which site, and when? Compare landing sites near the lunar south pole by how long the Sun (power) and
-    Earth (direct radio contact) stay above the local skyline, and find the best time to land.</p>
+    <p class="intro">Which site, and when? Compare landing sites anywhere on the Moon by how long the Sun (power) and
+    Earth (direct radio contact) stay above the local skyline, and find the best time to land. The curated sites
+    are near the south pole; click anywhere on the 3D Moon to analyse any other spot.</p>
     ${globeSection()}
+    ${customSection()}
     ${planSection(sites, plan)}
     ${statsPanel(sites)}
     <section class="moment">
@@ -207,7 +255,11 @@ async function main() {
     let globe = null;
     try {
       const { createGlobe } = await import("./globe.js");
-      globe = createGlobe(document.querySelector("#globe"), sites, (id) => selectSite(id));
+      globe = createGlobe(
+        document.querySelector("#globe"), sites,
+        (id) => selectSite(id),
+        (lat, lon) => analysePoint(lat, lon, "globe"),
+      );
       document.querySelector("#view-pole").addEventListener("click", () => globe.setView("pole"));
       document.querySelector("#view-moon").addEventListener("click", () => globe.setView("moon"));
     } catch (error) {
@@ -219,7 +271,10 @@ async function main() {
     function selectSite(id) {
       plan.site = id;
       document.querySelector("#plan-site").value = id;
-      document.querySelector("#globe-info").innerHTML = siteInfo(sites.find((s) => s.id === id));
+      const removable = id.startsWith("custom_") // only points you added yourself can be removed
+        ? `<button type="button" class="remove-point" data-remove="${id}">Remove this point</button>`
+        : "";
+      document.querySelector("#globe-info").innerHTML = siteInfo(sites.find((s) => s.id === id)) + removable;
       if (globe) globe.select(id);
       drawPlan();
     }
@@ -249,6 +304,104 @@ async function main() {
     const drawTable = (siteId) => (holder.innerHTML = tableView(analyses[siteId].rows));
     document.querySelector("#table-site").addEventListener("change", (e) => drawTable(e.target.value));
     drawTable(slots.a.site);
+
+    // Any point on the Moon (clicked on the globe or typed in): ask the backend, then add the point
+    // to the globe and the page like any other site.
+    const customStatus = document.querySelector("#custom-status");
+    const customGo = document.querySelector("#custom-go");
+    const globeInfo = document.querySelector("#globe-info");
+    let busy = false;
+
+    async function analysePoint(lat, lon, from) {
+      if (busy) {
+        globeInfo.innerHTML = `<p class="sub">Still working on the previous point, one moment…</p>`;
+        return;
+      }
+      busy = true;
+      customGo.disabled = true;
+      const where = `${Number(lat).toFixed(3)}°, ${(((Number(lon) % 360) + 360) % 360).toFixed(3)}° E`;
+      if (from === "globe") {
+        // Show the clicked coordinates in the form too, so they can be read and edited.
+        document.querySelector("#custom-lat").value = Number(lat).toFixed(3);
+        document.querySelector("#custom-lon").value = Number(lon).toFixed(3);
+      }
+      if (globe) globe.markPending(Number(lat), Number(lon));
+      const working = `Analysing ${where}: asking NASA JPL Horizons and building the skyline from NASA LOLA terrain…`;
+      globeInfo.innerHTML = `<h3>${where}</h3><p>${working}</p>`;
+      customStatus.className = "";
+      customStatus.textContent = working;
+      try {
+        const { site, analysis } = await loadCustomPoint(lat, lon);
+        if (!analyses[site.id]) {
+          sites.push(site);
+          analyses[site.id] = analysis;
+          for (const sel of ["#plan-site", "#site-a", "#site-b", "#table-site"]) {
+            document.querySelector(sel).insertAdjacentHTML("beforeend", siteOptions([site], null));
+          }
+          document.querySelector("#source-files").insertAdjacentHTML("beforeend", siteSourceLine(analysis));
+          if (globe) globe.addSite(site);
+        }
+        // Show it everywhere: the globe and its info box, the planning section, scenario A and the table.
+        selectSite(site.id);
+        slots.a.site = site.id;
+        document.querySelector("#site-a").value = site.id;
+        drawSlot("a", slots.a, analyses);
+        document.querySelector("#table-site").value = site.id;
+        drawTable(site.id);
+        const terrainNote = analysis.horizon === "flat"
+          ? " Flat horizon: no terrain map is downloaded on the server."
+          : " Skyline from real NASA LOLA terrain.";
+        customStatus.textContent = `Added "${site.label}" to the 3D Moon and the site pickers.${terrainNote}`;
+      } catch (error) {
+        customStatus.className = "error";
+        customStatus.textContent = error.message;
+        globeInfo.innerHTML = `<h3>${where}</h3><p class="error">${error.message.replace(/</g, "&lt;")}</p>`;
+      } finally {
+        if (globe) globe.markPending(null);
+        customGo.disabled = false;
+        busy = false;
+      }
+    }
+
+    // Remove a point you added: off the globe, out of every picker and the sources list.
+    // Anything that was showing it switches back to the first site.
+    function removePoint(id) {
+      const i = sites.findIndex((s) => s.id === id);
+      if (i < 0 || !id.startsWith("custom_")) return;
+      sites.splice(i, 1);
+      delete analyses[id];
+      for (const sel of ["#plan-site", "#site-a", "#site-b", "#table-site"]) {
+        document.querySelector(`${sel} option[value="${id}"]`)?.remove();
+      }
+      document.querySelector(`#source-files li[data-site="${id}"]`)?.remove();
+      if (globe) globe.removeSite(id);
+      const fallback = sites[0].id;
+      for (const key of ["a", "b"]) {
+        if (slots[key].site === id) {
+          slots[key].site = fallback;
+          document.querySelector(`#site-${key}`).value = fallback;
+          drawSlot(key, slots[key], analyses);
+        }
+      }
+      const tableSelect = document.querySelector("#table-site");
+      if (!analyses[tableSelect.value]) {
+        tableSelect.value = fallback;
+        drawTable(fallback);
+      }
+      selectSite(plan.site === id ? fallback : plan.site);
+      customStatus.className = "";
+      customStatus.textContent = "Point removed.";
+    }
+
+    globeInfo.addEventListener("click", (e) => {
+      const button = e.target.closest("[data-remove]");
+      if (button) removePoint(button.dataset.remove);
+    });
+
+    document.querySelector("#custom-form").addEventListener("submit", (e) => {
+      e.preventDefault(); // stay on the page instead of submitting the form
+      analysePoint(document.querySelector("#custom-lat").value, document.querySelector("#custom-lon").value, "form");
+    });
   } catch (error) {
     app.innerHTML = `<p class="error">Could not load the data: ${error.message}</p>`;
   }

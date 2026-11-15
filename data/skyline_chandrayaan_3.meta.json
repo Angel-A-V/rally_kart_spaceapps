@@ -1,0 +1,18 @@
+{
+  "site": "chandrayaan_3",
+  "lat_deg": -69.373,
+  "lon_deg_east": 32.319,
+  "site_height_m_above_1737.4km_sphere": 529.4794959999961,
+  "azimuth": "0 = north, 90 = east, step 1.0 deg",
+  "max_range_km": 250.0,
+  "near_map": "LDEM_128",
+  "near_range_km": 35.0,
+  "far_map": "LDEM_128",
+  "far_range_km": 250.0,
+  "far_range_limited_by_map_edge": false,
+  "skyline_min_deg": 0.6924007287996814,
+  "skyline_max_deg": 2.464858596665471,
+  "skyline_mean_deg": 1.4159794050673262,
+  "terrain_map": "LDEM_128",
+  "source": "NASA LRO LOLA LDEM_128 (PDS Geosciences Node GDR, 128 pixels per degree; the same map as Moon Trek's LRO LOLA DEM)"
+}

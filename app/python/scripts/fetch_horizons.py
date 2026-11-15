@@ -16,6 +16,8 @@ import csv
 import datetime as dt
 import json
 import os
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -60,13 +62,59 @@ def parse_result(text):
     return rows
 
 
-def query(params):
+def query(params, retries=2, pause_s=3.0):
+    """One Horizons request. Returns (reply text, the exact URL asked).
+
+    Retries only when Horizons says it is busy (HTTP 500 = database unavailable,
+    503 = overloaded or maintenance; see docs/software-architecture.md section 5d).
+    Input mistakes come back as HTTP 200 with an "error" field, so check for that too.
+    """
     url = API + "?" + urllib.parse.urlencode(params)
-    with urllib.request.urlopen(url, timeout=120) as r:
-        data = json.load(r)
+    for attempt in range(retries + 1):
+        try:
+            with urllib.request.urlopen(url, timeout=120) as r:
+                data = json.load(r)
+            break
+        except urllib.error.HTTPError as e:
+            if e.code not in (500, 503) or attempt == retries:
+                raise
+            time.sleep(pause_s)
+    if "error" in data:
+        raise RuntimeError(f"Horizons error: {data['error']}")
     if "result" not in data:
         raise RuntimeError(f"Horizons error: {data}")
     return data["result"], url
+
+
+def fetch_rows(lat, lon_east, height_m, start, stop, step):
+    """Ask Horizons for the Sun and the Earth as seen from (lat, lon_east, height_m).
+
+    Returns (rows, urls). rows: list of dicts with the same keys as
+    analysis.visibility.load_horizons() gives, so the analysis cannot tell them apart.
+    urls: {"sun": ..., "earth": ...}, the exact queries (for the data-sources panel).
+    """
+    series, urls = {}, {}
+    for name, body in BODIES.items():
+        text, urls[name] = query(build_params(body, lat, lon_east, height_m, start, stop, step))
+        series[name] = parse_result(text)
+    sun, earth = series["sun"], series["earth"]
+    if [r[0] for r in sun] != [r[0] for r in earth]:
+        raise RuntimeError("Horizons returned different times for the Sun and the Earth")
+    rows = [
+        {"time_utc": t, "sun_az_deg": saz, "sun_el_deg": sel, "earth_az_deg": eaz, "earth_el_deg": eel}
+        for (t, saz, sel), (_, eaz, eel) in zip(sun, earth)
+    ]
+    return rows, urls
+
+
+def write_csv(path, rows):
+    """Save rows in the cached-CSV format that analysis.visibility.load_horizons() reads."""
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["time_utc", "sun_az_deg", "sun_el_deg", "earth_az_deg", "earth_el_deg"])
+        for r in rows:
+            w.writerow([r["time_utc"], f"{r['sun_az_deg']:.4f}", f"{r['sun_el_deg']:.4f}",
+                        f"{r['earth_az_deg']:.4f}", f"{r['earth_el_deg']:.4f}"])
 
 
 def main():
@@ -88,24 +136,13 @@ def main():
         print("cached:", out_csv)
         return
 
-    series, urls = {}, {}
-    for name, body in BODIES.items():
-        params = build_params(body, lat, lon, SITE_HEIGHT_M[a.site], start, stop, a.step)
-        text, urls[name] = query(params)
-        series[name] = parse_result(text)
-
-    sun, earth = series["sun"], series["earth"]
-    assert [r[0] for r in sun] == [r[0] for r in earth], "Sun and Earth times differ"
+    rows, urls = fetch_rows(lat, lon, SITE_HEIGHT_M[a.site], start, stop, a.step)
     os.makedirs(os.path.dirname(out_csv), exist_ok=True)
-    with open(out_csv, "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["time_utc", "sun_az_deg", "sun_el_deg", "earth_az_deg", "earth_el_deg"])
-        for (t, saz, sel), (_, eaz, eel) in zip(sun, earth):
-            w.writerow([t, f"{saz:.4f}", f"{sel:.4f}", f"{eaz:.4f}", f"{eel:.4f}"])
+    write_csv(out_csv, rows)
     meta = {
         "site": a.site, "lat_deg": lat, "lon_deg_east": lon,
         "site_height_m": SITE_HEIGHT_M[a.site],
-        "start_utc": start, "stop_utc": stop, "step": a.step, "rows": len(sun),
+        "start_utc": start, "stop_utc": stop, "step": a.step, "rows": len(rows),
         "source": "NASA JPL Horizons API (ssd.jpl.nasa.gov), ephemeris DE441, "
                   "Moon orientation MEAN_ME high precision (includes libration)",
         "azimuth": "0 = north, 90 = east",
@@ -114,7 +151,7 @@ def main():
     }
     with open(out_meta, "w") as f:
         json.dump(meta, f, indent=2)
-    print(f"wrote {out_csv} ({len(sun)} rows)")
+    print(f"wrote {out_csv} ({len(rows)} rows)")
 
 
 if __name__ == "__main__":

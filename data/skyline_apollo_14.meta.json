@@ -1,0 +1,18 @@
+{
+  "site": "apollo_14",
+  "lat_deg": -3.638545,
+  "lon_deg_east": 342.54718,
+  "site_height_m_above_1737.4km_sphere": -1048.7010079231302,
+  "azimuth": "0 = north, 90 = east, step 1.0 deg",
+  "max_range_km": 250.0,
+  "near_map": "LDEM_128",
+  "near_range_km": 35.0,
+  "far_map": "LDEM_128",
+  "far_range_km": 250.0,
+  "far_range_limited_by_map_edge": false,
+  "skyline_min_deg": -0.2574606557026459,
+  "skyline_max_deg": 7.339146274410054,
+  "skyline_mean_deg": 2.2325569195718846,
+  "terrain_map": "LDEM_128",
+  "source": "NASA LRO LOLA LDEM_128 (PDS Geosciences Node GDR, 128 pixels per degree; the same map as Moon Trek's LRO LOLA DEM)"
+}

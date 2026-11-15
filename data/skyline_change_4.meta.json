@@ -1,0 +1,18 @@
+{
+  "site": "change_4",
+  "lat_deg": -45.4561,
+  "lon_deg_east": 177.5885,
+  "site_height_m_above_1737.4km_sphere": -5930.4313023999985,
+  "azimuth": "0 = north, 90 = east, step 1.0 deg",
+  "max_range_km": 250.0,
+  "near_map": "LDEM_128",
+  "near_range_km": 35.0,
+  "far_map": "LDEM_128",
+  "far_range_km": 250.0,
+  "far_range_limited_by_map_edge": false,
+  "skyline_min_deg": 0.13900322917902672,
+  "skyline_max_deg": 2.993544894418825,
+  "skyline_mean_deg": 1.2631068113358488,
+  "terrain_map": "LDEM_128",
+  "source": "NASA LRO LOLA LDEM_128 (PDS Geosciences Node GDR, 128 pixels per degree; the same map as Moon Trek's LRO LOLA DEM)"
+}

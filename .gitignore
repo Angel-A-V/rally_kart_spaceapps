@@ -4,6 +4,9 @@
 # Big downloaded terrain data. Re-created by `python3 app/python/scripts/make_skyline.py`
 data/raw/
 
+# Answers for typed-in coordinates, cached by the backend (app/python/server/custom_point.py)
+data/custom/
+
 # Python
 __pycache__/
 *.pyc

@@ -129,11 +129,25 @@ class SitesIndex(unittest.TestCase):
             for key in ("pole_distance_km", "site_height_m", "coordinate_source", "is_model_site"):
                 self.assertIn(key, entry)
 
-    def test_has_the_model_site_and_the_seven_named_features(self):
+    def test_has_the_model_site_the_named_features_and_the_apollo_sites(self):
         ids = [s["id"] for s in build_sites_index()]
-        self.assertEqual(len(ids), 8)
-        for name in ("shackleton", "de_gerlache", "haworth", "nobile", "mons_mouton", "malapert", "cabeus"):
+        self.assertEqual(len(ids), 34)   # model site + 7 named features + 6 Apollo + 20 other landings
+        for name in ("shackleton", "de_gerlache", "haworth", "nobile", "mons_mouton", "malapert", "cabeus",
+                     "apollo_11", "apollo_12", "apollo_14", "apollo_15", "apollo_16", "apollo_17",
+                     "luna_9", "surveyor_1", "change_4", "change_6", "chandrayaan_3", "slim", "im_2"):
             self.assertIn(name, ids)
+
+    def test_far_side_landings_never_see_earth(self):
+        # Chang'e 4 and 6 are on the far side: Earth is always below the horizon (they needed a relay).
+        for site in ("change_4", "change_6"):
+            self.assertEqual(build_site_payload(site)["year"]["earth_visible_pct"], 0.0, site)
+
+    def test_apollo_sites_use_the_whole_moon_terrain_map(self):
+        apollo = build_site_payload("apollo_11")
+        self.assertEqual(apollo["terrain"]["near_map"], "LDEM_128")
+        self.assertAlmostEqual(apollo["lat_deg"], 0.671, places=2)    # Moon Trek bookmark centre
+        self.assertAlmostEqual(apollo["lon_deg_east"], 23.484, places=2)
+        self.assertEqual(apollo["year"]["earth_visible_pct"], 100.0)  # near side: Earth never sets
 
     def test_first_site_is_the_model_site(self):
         self.assertEqual(build_sites_index()[0]["id"], "shackleton_rim")

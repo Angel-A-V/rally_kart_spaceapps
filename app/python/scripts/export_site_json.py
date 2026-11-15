@@ -86,13 +86,17 @@ def _plan(year_rows):
     }
 
 
-def build_site_payload(site):
-    """Everything the page needs for one site."""
-    skyline = load_skyline(_skyline_path(site))
-    month_rows = analyse(load_horizons(os.path.join(ROOT, "data", _horizons_name(site, MONTH))), skyline)
-    year_rows = _year_rows(site, skyline)
-    label, description = SITE_INFO[site]
-    lat, lon = SITES[site]
+def assemble_payload(site, label, description, lat, lon, skyline, month_raw, year_raw,
+                     coordinate_source, terrain, sources, is_model_site=False):
+    """Everything the page needs for one place, from raw inputs.
+
+    Pure: data in, dict out. Used for the curated sites (below) and for typed-in
+    coordinates (app/python/server/custom_point.py), so both give the page the same shape.
+    month_raw / year_raw: Horizons rows (30 days hourly / 365 days 6-hourly).
+    skyline: 360 angles, index = whole-degree azimuth.
+    """
+    month_rows = analyse(month_raw, skyline)
+    year_rows = analyse(year_raw, skyline)
     return {
         "site": site,
         "label": label,
@@ -100,20 +104,53 @@ def build_site_payload(site):
         "lat_deg": lat,
         "lon_deg_east": lon,
         "pole_distance_km": _pole_distance_km(lat),
-        "is_model_site": site == MODEL_SITE,
-        "coordinate_source": SITE_SOURCE[site],
-        "terrain": _terrain(site),
-        "sources": {
-            "horizons_30d": _horizons_name(site, MONTH),
-            "horizons_year": _horizons_name(site, YEAR),
-            "skyline": SKYLINE_FILE[site],
-        },
+        "is_model_site": is_model_site,
+        "coordinate_source": coordinate_source,
+        "terrain": terrain,
+        "sources": sources,
         "summary": _round(summarise(month_rows), 1),
         "year": _round(window_stats(year_rows, YEAR["step_hours"]), 1),
         "plan": _plan(year_rows),
         "skyline_deg": [round(v, 3) for v in skyline],  # index = whole-degree azimuth
         "rows": [_round(r, 4) for r in annotate_events(month_rows, MONTH["step_hours"])],
     }
+
+
+def index_entry(site, label, description, lat, lon, site_height_m, coordinate_source, year,
+                is_model_site=False):
+    """One line of the sites index (what the pickers, the globe and the yearly table read)."""
+    return {
+        "id": site,
+        "label": label,
+        "description": description,
+        "lat_deg": lat,
+        "lon_deg_east": lon,
+        "pole_distance_km": _pole_distance_km(lat),
+        "site_height_m": site_height_m,
+        "is_model_site": is_model_site,
+        "coordinate_source": coordinate_source,
+        "year": year,
+    }
+
+
+def build_site_payload(site):
+    """Everything the page needs for one curated site (read from the cached files)."""
+    label, description = SITE_INFO[site]
+    lat, lon = SITES[site]
+    return assemble_payload(
+        site, label, description, lat, lon,
+        skyline=load_skyline(_skyline_path(site)),
+        month_raw=load_horizons(os.path.join(ROOT, "data", _horizons_name(site, MONTH))),
+        year_raw=load_horizons(os.path.join(ROOT, "data", _horizons_name(site, YEAR))),
+        coordinate_source=SITE_SOURCE[site],
+        terrain=_terrain(site),
+        sources={
+            "horizons_30d": _horizons_name(site, MONTH),
+            "horizons_year": _horizons_name(site, YEAR),
+            "skyline": SKYLINE_FILE[site],
+        },
+        is_model_site=site == MODEL_SITE,
+    )
 
 
 def build_sites_index():
@@ -123,18 +160,13 @@ def build_sites_index():
         skyline = load_skyline(_skyline_path(site))
         label, description = SITE_INFO[site]
         lat, lon = SITES[site]
-        index.append({
-            "id": site,
-            "label": label,
-            "description": description,
-            "lat_deg": lat,
-            "lon_deg_east": lon,
-            "pole_distance_km": _pole_distance_km(lat),
-            "site_height_m": _terrain(site)["site_height_m"],
-            "is_model_site": site == MODEL_SITE,
-            "coordinate_source": SITE_SOURCE[site],
-            "year": _round(window_stats(_year_rows(site, skyline), YEAR["step_hours"]), 1),
-        })
+        index.append(index_entry(
+            site, label, description, lat, lon,
+            site_height_m=_terrain(site)["site_height_m"],
+            coordinate_source=SITE_SOURCE[site],
+            year=_round(window_stats(_year_rows(site, skyline), YEAR["step_hours"]), 1),
+            is_model_site=site == MODEL_SITE,
+        ))
     return index
 
 

@@ -45,19 +45,63 @@ if os.path.exists(_trek_path):
         _trek = json.load(_f)
     for _s in _trek["sites"]:
         SITES[_s["id"]] = (_s["lat_deg"], _s["lon_deg_east"])
-        SITE_INFO[_s["id"]] = (
-            _s["name"],
-            f"Centre of the named lunar feature {_s['name']}, {_s['pole_distance_km']:.0f} km from the south pole. "
-            "A named place, not a chosen landing spot.",
-        )
-        SITE_SOURCE[_s["id"]] = f"NASA Moon Trek (IAU nomenclature), retrieved {_trek['retrieved_utc']}"
+        if _s.get("kind") == "landing_site":
+            _ns = "N" if _s["lat_deg"] >= 0 else "S"
+            SITE_INFO[_s["id"]] = (
+                f"{_s['name']} landing site",
+                f"Where {_s['name']} landed ({abs(_s['lat_deg']):.3f}° {_ns}, {_s['lon_deg_east']:.3f}° E). "
+                "Coordinate: the centre of NASA Moon Trek's bookmark for the landing area.",
+            )
+            SITE_SOURCE[_s["id"]] = f"NASA Moon Trek (landing-site bookmark), retrieved {_trek['retrieved_utc']}"
+        else:
+            SITE_INFO[_s["id"]] = (
+                _s["name"],
+                f"Centre of the named lunar feature {_s['name']}, {_s['pole_distance_km']:.0f} km from the south pole. "
+                "A named place, not a chosen landing spot.",
+            )
+            SITE_SOURCE[_s["id"]] = f"NASA Moon Trek (IAU nomenclature), retrieved {_trek['retrieved_utc']}"
 
-# Which terrain map each site's skyline is built from: the finest one that covers the site and its
-# 35 km look-out distance. The 20 m band only reaches 50 km from the pole; the 40 m map reaches 304 km.
-SITE_GRID = {
-    site: "85S_20M" if _pole_distance_km(lat) + SKYLINE_RANGE_KM <= BAND_REACH_KM else "80S_40M"
-    for site, (lat, _lon) in SITES.items()
-}
+# Other past soft landings (Surveyor, Luna, Chang'e, Chandrayaan-3, SLIM, Blue Ghost, IM-2), cached in
+# data/sites_landings.json by fetch_landing_sites.py from Wikipedia's list of artificial objects on the
+# Moon. Each site keeps the source that list cites for its coordinate (mostly NASA LROC or NSSDC).
+_land_path = os.path.join(DATA, "sites_landings.json")
+if os.path.exists(_land_path):
+    with open(_land_path) as _f:
+        _land = json.load(_f)
+    for _s in _land["sites"]:
+        SITES[_s["id"]] = (_s["lat_deg"], _s["lon_deg_east"])
+        _ns = "N" if _s["lat_deg"] >= 0 else "S"
+        _note = f" {_s['note']}" if _s.get("note") else ""
+        SITE_INFO[_s["id"]] = (
+            f"{_s['name']} landing site",
+            f"Where {_s['name']} landed ({_s['country']}, {_s['year']}), "
+            f"{abs(_s['lat_deg']):.3f}° {_ns}, {_s['lon_deg_east']:.3f}° E.{_note}",
+        )
+        _cited = _s["source_url"] or "no link given there"
+        SITE_SOURCE[_s["id"]] = (f"Wikipedia's list of artificial objects on the Moon (retrieved "
+                                 f"{_land['retrieved_utc']}), which cites {_cited}")
+
+POLAR_REACH_KM = 303.0  # the 40 m polar map covers about 304 km from the pole
+
+
+def grid_for(lat):
+    """Which terrain map a site's skyline is built from: the finest one that covers the site and its
+    35 km look-out. The 20 m band reaches 50 km from the pole, the 40 m map 304 km; anywhere else on
+    the Moon uses the whole-Moon map LDEM_128 (about 237 m per pixel)."""
+    km = _pole_distance_km(lat)
+    if lat <= 0 and km + SKYLINE_RANGE_KM <= BAND_REACH_KM:
+        return "85S_20M"
+    if lat <= 0 and km + SKYLINE_RANGE_KM <= POLAR_REACH_KM:
+        return "80S_40M"
+    return "LDEM_128"
+
+
+SITE_GRID = {site: grid_for(lat) for site, (lat, _lon) in SITES.items()}
+# IM-2 is inside the 40 m polar map, but that map was not downloaded on the machine that built its
+# skyline (2026-11-14), so it uses the whole-Moon map for now. Remove this line and re-run
+# make_skyline.py --site im_2 after downloading LDEM_80S_40M for finer near-field detail.
+if "im_2" in SITE_GRID:
+    SITE_GRID["im_2"] = "LDEM_128"
 
 # The skyline file the WEBSITE uses for each site (near terrain plus far terrain out to 250 km).
 # The model site has two files on purpose:

@@ -1,0 +1,226 @@
+{
+  "source": "Wikipedia, 'List of artificial objects on the Moon' (https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon); each site keeps the source that page cites",
+  "retrieved_utc": "2026-11-14",
+  "sites": [
+    {
+      "id": "luna_9",
+      "name": "Luna 9",
+      "country": "USSR",
+      "year": 1966,
+      "lat_deg": 7.08,
+      "lon_deg_east": 295.63,
+      "status_on_page": "landed",
+      "source_url": "",
+      "note": ""
+    },
+    {
+      "id": "surveyor_1",
+      "name": "Surveyor 1",
+      "country": "United States",
+      "year": 1966,
+      "lat_deg": -2.474,
+      "lon_deg_east": 316.661,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1966-045A",
+      "note": ""
+    },
+    {
+      "id": "luna_13",
+      "name": "Luna 13",
+      "country": "USSR",
+      "year": 1966,
+      "lat_deg": 18.87,
+      "lon_deg_east": 297.95,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1966-116A",
+      "note": ""
+    },
+    {
+      "id": "surveyor_3",
+      "name": "Surveyor 3",
+      "country": "United States",
+      "year": 1967,
+      "lat_deg": -3.015,
+      "lon_deg_east": 336.582,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1967-035A",
+      "note": ""
+    },
+    {
+      "id": "surveyor_5",
+      "name": "Surveyor 5",
+      "country": "United States",
+      "year": 1967,
+      "lat_deg": 1.461,
+      "lon_deg_east": 23.195,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1967-084A",
+      "note": ""
+    },
+    {
+      "id": "surveyor_6",
+      "name": "Surveyor 6",
+      "country": "United States",
+      "year": 1967,
+      "lat_deg": 0.4743,
+      "lon_deg_east": 358.5725,
+      "status_on_page": "landed",
+      "source_url": "https://quickmap.lroc.im-ldi.com/?prjExtent=-43409.3499451,14353.3895196,-43156.1885415,14483.3120926&activeDrawingLayer=@@user-defined&stack=3314&selectedFeature=3005,28&isCesiumDynamicEnabled=true&shadowsType=all&proj=16&features=-1.37,0.46",
+      "note": ""
+    },
+    {
+      "id": "surveyor_7",
+      "name": "Surveyor 7",
+      "country": "United States",
+      "year": 1968,
+      "lat_deg": -40.98,
+      "lon_deg_east": 348.486,
+      "status_on_page": "landed",
+      "source_url": "https://lroc.im-ldi.com/images/534",
+      "note": ""
+    },
+    {
+      "id": "luna_16",
+      "name": "Luna 16",
+      "country": "USSR",
+      "year": 1970,
+      "lat_deg": -0.68,
+      "lon_deg_east": 56.3,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1970-072A",
+      "note": ""
+    },
+    {
+      "id": "luna_17",
+      "name": "Luna 17 / Lunokhod 1",
+      "country": "USSR",
+      "year": 1970,
+      "lat_deg": 38.28,
+      "lon_deg_east": 325.0,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1970-095A",
+      "note": ""
+    },
+    {
+      "id": "luna_20",
+      "name": "Luna 20",
+      "country": "USSR",
+      "year": 1972,
+      "lat_deg": 3.57,
+      "lon_deg_east": 56.5,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1972-007A",
+      "note": ""
+    },
+    {
+      "id": "luna_21",
+      "name": "Luna 21 / Lunokhod 2",
+      "country": "USSR",
+      "year": 1973,
+      "lat_deg": 25.85,
+      "lon_deg_east": 30.45,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1973-001A",
+      "note": ""
+    },
+    {
+      "id": "luna_24",
+      "name": "Luna 24",
+      "country": "USSR",
+      "year": 1976,
+      "lat_deg": 12.75,
+      "lon_deg_east": 62.2,
+      "status_on_page": "landed",
+      "source_url": "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1976-081A",
+      "note": ""
+    },
+    {
+      "id": "change_3",
+      "name": "Chang'e 3",
+      "country": "China",
+      "year": 2013,
+      "lat_deg": 44.12,
+      "lon_deg_east": 340.49,
+      "status_on_page": "operational",
+      "source_url": "http://www.space.com/28810-moon-history-chinese-lunar-rover.html?adbid=10152690360766466&adbpl=fb&adbpr=17610706465",
+      "note": ""
+    },
+    {
+      "id": "change_4",
+      "name": "Chang'e 4",
+      "country": "China",
+      "year": 2019,
+      "lat_deg": -45.4561,
+      "lon_deg_east": 177.5885,
+      "status_on_page": "operational",
+      "source_url": "http://www.lroc.asu.edu/posts/1100",
+      "note": ""
+    },
+    {
+      "id": "change_5",
+      "name": "Chang'e 5",
+      "country": "China",
+      "year": 2020,
+      "lat_deg": 43.0576,
+      "lon_deg_east": 308.0839,
+      "status_on_page": "landed",
+      "source_url": "",
+      "note": ""
+    },
+    {
+      "id": "change_6",
+      "name": "Chang'e 6",
+      "country": "China",
+      "year": 2024,
+      "lat_deg": -41.6385,
+      "lon_deg_east": 206.0148,
+      "status_on_page": "landed",
+      "source_url": "https://www.lroc.asu.edu/images/1374",
+      "note": ""
+    },
+    {
+      "id": "chandrayaan_3",
+      "name": "Chandrayaan-3 (Vikram)",
+      "country": "India",
+      "year": 2023,
+      "lat_deg": -69.373,
+      "lon_deg_east": 32.319,
+      "status_on_page": "landed",
+      "source_url": "https://www.youtube.com/watch?v=howp3hl5Zag",
+      "note": ""
+    },
+    {
+      "id": "slim",
+      "name": "SLIM",
+      "country": "Japan",
+      "year": 2024,
+      "lat_deg": -13.316,
+      "lon_deg_east": 25.251,
+      "status_on_page": "landed",
+      "source_url": "https://spacenews.com/japan-makes-history-with-tense-successful-moon-landing/",
+      "note": ""
+    },
+    {
+      "id": "blue_ghost_m1",
+      "name": "Blue Ghost Mission 1",
+      "country": "United States",
+      "year": 2025,
+      "lat_deg": 18.5623,
+      "lon_deg_east": 61.8103,
+      "status_on_page": "landed",
+      "source_url": "https://www.lroc.asu.edu/images/1407",
+      "note": ""
+    },
+    {
+      "id": "im_2",
+      "name": "IM-2 Athena",
+      "country": "United States",
+      "year": 2025,
+      "lat_deg": -84.7906,
+      "lon_deg_east": 29.1957,
+      "status_on_page": "landed",
+      "source_url": "https://www.lroc.asu.edu/images/1408",
+      "note": "Landed on its side (tipped over)."
+    }
+  ]
+}
