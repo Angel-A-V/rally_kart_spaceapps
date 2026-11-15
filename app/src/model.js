@@ -28,10 +28,18 @@ export function parseModelAddress(text) {
   return ok ? `${host}:${port}` : null;
 }
 
-// The page to open on the board. cmd: "SUN" (the board's default) or "EARTH".
-export function modelUrl(address, { site, az, el, cmd = "SUN" }) {
-  const q = new URLSearchParams({ site, az: az.toFixed(1), el: el.toFixed(1) });
-  if (cmd !== "SUN") q.set("cmd", cmd);
+// The page to open on the board, with the Sun and Earth together so both motors move at once.
+// row: one analysed hourly row (time_utc, sun_/earth_ az_deg, el_deg, visible). Contract for the board:
+// docs/handoffs/model-link-for-board.md. az/el repeat the Sun for boards still on the first version.
+export function modelUrl(address, site, row) {
+  const f = (v) => v.toFixed(1);
+  const q = new URLSearchParams({
+    site,
+    time: row.time_utc,
+    sun_az: f(row.sun_az_deg), sun_el: f(row.sun_el_deg), sun_up: row.sun_visible ? "1" : "0",
+    earth_az: f(row.earth_az_deg), earth_el: f(row.earth_el_deg), earth_up: row.earth_visible ? "1" : "0",
+    az: f(row.sun_az_deg), el: f(row.sun_el_deg),
+  });
   return `http://${address}/?${q}`;
 }
 

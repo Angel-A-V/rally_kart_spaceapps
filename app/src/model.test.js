@@ -19,9 +19,15 @@ test("parseModelAddress: anything that is not a board on the local network is re
   }
 });
 
-test("modelUrl: the address the board's page expects", () => {
-  assert.equal(
-    modelUrl("10.35.17.220:7000", { site: "Shackleton rim (model site)", az: 123.4321, el: -1.26 }),
-    "http://10.35.17.220:7000/?site=Shackleton+rim+%28model+site%29&az=123.4&el=-1.3");
-  assert.match(modelUrl("moon.local:7000", { site: "X", az: 5, el: 1, cmd: "EARTH" }), /&cmd=EARTH$/);
+test("modelUrl: Sun and Earth together, so both motors move at once", () => {
+  const row = { time_utc: "2026-Nov-18 08:00", sun_az_deg: 230.1234, sun_el_deg: 1.36, sun_visible: true,
+    earth_az_deg: 149.83, earth_el_deg: -0.66, earth_visible: false };
+  const url = new URL(modelUrl("10.35.17.220:7000", "Shackleton rim (model site)", row));
+  assert.equal(url.origin, "http://10.35.17.220:7000");
+  const q = Object.fromEntries(url.searchParams);
+  assert.deepEqual(q, {
+    site: "Shackleton rim (model site)", time: "2026-Nov-18 08:00",
+    sun_az: "230.1", sun_el: "1.4", sun_up: "1", earth_az: "149.8", earth_el: "-0.7", earth_up: "0",
+    az: "230.1", el: "1.4",
+  });
 });
