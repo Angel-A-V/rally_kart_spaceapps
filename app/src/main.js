@@ -233,8 +233,8 @@ function panelActions(id) {
       <button type="button" data-open="compare" data-for="${id}">Compare with…</button>
       <button type="button" data-open="plan" data-for="${id}">Plan a mission here</button>
       <button type="button" data-open="table" data-for="${id}">Hourly table</button>
-      ${modelAddress ? `<button type="button" class="model-btn" data-model="SUN" title="Turn the tabletop model (${modelAddress}) to the Sun's direction at this site and time">Show on model</button>
-      <button type="button" class="model-btn" data-model="EARTH" title="Point the tabletop model at Earth's direction at this site and time">Earth on model</button>` : ""}
+      ${modelAddress && view.sites?.find((s) => s.id === id)?.is_model_site ? `<button type="button" class="model-btn" data-model="SUN" title="Spin the model's horizon disc so the lamp (the Sun) is in the Sun's direction at this time">Sun on model</button>
+      <button type="button" class="model-btn" data-model="EARTH" title="Lift the model's Earth to Earth's height above the horizon at this time">Earth on model</button>` : ""}
       ${id.startsWith("custom_") ? `<button type="button" class="remove-point" data-remove="${id}">Remove this point</button>` : ""}
     </div>`;
 }
