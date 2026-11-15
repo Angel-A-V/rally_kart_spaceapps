@@ -466,7 +466,11 @@ function shell(sites, analyses, slots, plan, check, checks) {
     ${quickViews()}
     ${drawer()}
     ${sheet(pages)}
-    ${panel()}`;
+    ${panel()}
+    <button type="button" id="ui-toggle" class="ui-toggle" aria-pressed="false" title="Hide the panels and look at the Moon (H)">
+      <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span class="ui-toggle-text">Just the Moon</span>
+    </button>`;
 }
 
 function drawSlot(id, slot, analyses) {
@@ -606,6 +610,27 @@ async function main() {
       if (globe) {
         globe.select(null);
         globe.setPin(null);
+      }
+    });
+    // "Just the Moon": hide every panel and bar so people can look at the Moon and the sky.
+    // The button stays (dimmed) to bring everything back; H toggles, Esc also brings it back.
+    const uiBtn = document.querySelector("#ui-toggle");
+    const setUiHidden = (hide) => {
+      document.body.classList.toggle("ui-hidden", hide);
+      uiBtn.setAttribute("aria-pressed", String(hide));
+      if (globe) globe.setOverlay(!hide); // the site dots and the pin go too
+      uiBtn.querySelector(".ui-toggle-text").textContent = hide ? "Show panels" : "Just the Moon";
+      uiBtn.title = hide ? "Bring the panels back (H or Esc)" : "Hide the panels and look at the Moon (H)";
+      if (hide) closeContextMenu();
+    };
+    uiBtn.addEventListener("click", () => setUiHidden(!document.body.classList.contains("ui-hidden")));
+    document.addEventListener("keydown", (e) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "h" || e.key === "H")) {
+        setUiHidden(!document.body.classList.contains("ui-hidden"));
+      } else if (e.key === "Escape" && document.body.classList.contains("ui-hidden")) {
+        e.stopImmediatePropagation();
+        setUiHidden(false);
       }
     });
     document.addEventListener("keydown", (e) => {

@@ -308,6 +308,14 @@ export function createGlobe(container, sites, handlers = {}) {
   pin.visible = false;
   scene.add(pin);
 
+  // "Just the Moon" view: hide every marker, the pin and the working dot (the page hides the labels).
+  let overlayShown = true;
+  const setOverlay = (show) => {
+    overlayShown = show;
+    pin.material.visible = show;
+    pendingDot.material.visible = show;
+  };
+
   // Day and night: a see-through dark shell over the half of the Moon facing away from the Sun.
   // The Sun's direction comes from NASA JPL Horizons (main.js, via geo.js sunDirection).
   const night = new THREE.Mesh(
@@ -486,6 +494,7 @@ export function createGlobe(container, sites, handlers = {}) {
   };
   const siteUnder = (event) => {
     aim(event);
+    if (!overlayShown) return null; // markers hidden ("Just the Moon"): nothing to click
     const hits = raycaster.intersectObjects(hitTargets, false);
     return hits.length ? hits[0].object.userData.siteId : null;
   };
@@ -606,7 +615,7 @@ export function createGlobe(container, sites, handlers = {}) {
       m.hit.scale.setScalar(scale);
       toCamera.copy(camera.position).sub(m.position);
       const facing = toCamera.dot(m.position) > 0; // false when the site is on the far side
-      m.dot.visible = facing;
+      m.dot.visible = facing && overlayShown;
       m.dot.quaternion.copy(camera.quaternion);     // face the viewer
       projected.copy(m.position).project(camera);
       const x = ((projected.x + 1) / 2) * width();
@@ -691,5 +700,5 @@ export function createGlobe(container, sites, handlers = {}) {
     return { x, y, r: Math.hypot(ex - x, ey - y) };
   };
 
-  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setShadows, setLayer, addSite, removeSite, markPending, moonCircle };
+  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setShadows, setLayer, addSite, removeSite, markPending, moonCircle, setOverlay };
 }

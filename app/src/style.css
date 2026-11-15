@@ -583,3 +583,26 @@ svg.sky .mk-state.no { fill: var(--no); }
   .globe-info > *, .ring-fill, .quick-views button.spin .vi, .vi-craft { animation: none !important; }
   .qv-glider { transition: none; }
 }
+
+/* ---- "Just the Moon": hide every panel and bar; the toggle itself stays, dimmed ---- */
+.ui-toggle {
+  position: absolute; z-index: 8; right: var(--gap); bottom: calc(var(--gap) + 58px); height: 40px; padding: 0 14px 0 12px;
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-2); font-size: 0.85rem;
+  background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-line); border-radius: var(--radius);
+}
+.ui-toggle:hover { color: var(--text); background: var(--glass-strong); }
+.ui-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.hud, .drawer, .sheet, .stage .globe-labels { transition: opacity 0.35s ease; }  /* .panel already fades (its own rule) */
+body.ui-hidden .hud, body.ui-hidden .panel, body.ui-hidden .drawer, body.ui-hidden .sheet,
+body.ui-hidden .ctx-menu, body.ui-hidden .stage .globe-labels { opacity: 0 !important; pointer-events: none !important; }
+/* stays fully on screen with its words ("Show panels"), just softer, so anyone can find the way back */
+body.ui-hidden .ui-toggle { opacity: 0.7; }
+body.ui-hidden .ui-toggle:hover, body.ui-hidden .ui-toggle:focus-visible { opacity: 1; }
+@media (max-width: 760px) {
+  .ui-toggle { bottom: auto; top: calc(var(--gap) + 104px); }
+}
+@media (prefers-reduced-motion: reduce) { .hud, .drawer, .sheet, .stage .globe-labels { transition: none; } }
+
+/* desktop: the analysis panel stops above the Just the Moon button, which sits one row above the bottom bar */
+@media (min-width: 761px) { .panel { bottom: calc(var(--gap) + 110px); } }
