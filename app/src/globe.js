@@ -10,7 +10,7 @@
 //              or long press on the surface (x, y = screen position for a menu); onHover: cursor moved.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { flightPoint, latLonToXyz, tileGrid, tileUrl, xyzToLatLon } from "./geo.js";
+import { detailWindow, flightPoint, latLonToXyz, tileGrid, tileUrl, xyzToLatLon } from "./geo.js";
 import { isOnNearHalf, minDiameterKm } from "./features.js";
 
 const TILE_PX = 256;
@@ -98,6 +98,79 @@ export function createGlobe(container, sites, handlers = {}) {
   const moon = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 96), new THREE.MeshBasicMaterial({ map: texture }));
   scene.add(moon);
 
+  // Sharper picture for the area in view: a patch of higher-zoom Moon Trek tiles laid just above the
+  // base picture, reloaded whenever the camera comes to rest somewhere new (geo.js detailWindow).
+  let patch = null;       // { mesh, key }
+  let patchToken = 0;
+  const updatePatch = () => {
+    const d = camera.position.length();
+    const [x, y, z] = camera.position.toArray();
+    const under = xyzToLatLon(x, y, z);
+    // Degrees of Moon from the centre of the view to its corner, with a margin.
+    const halfV = THREE.MathUtils.degToRad(camera.fov / 2);
+    const reach = Math.hypot(Math.tan(halfV), Math.tan(halfV) * camera.aspect) * (d - 1);
+    const viewDeg = Math.min(60, THREE.MathUtils.radToDeg(reach) * 1.25);
+    const win = d > 2.8 ? null : detailWindow(under.lat, ((under.lon + 180) % 360 + 360) % 360 - 180, viewDeg);
+    const key = win ? [win.zoom, win.row0, win.rows, win.col0, win.cols].join("/") : "none";
+    if (patch && patch.key === key) return;
+    const token = ++patchToken;
+    const old = patch;
+    const drop = () => {
+      if (!old?.mesh) return;
+      scene.remove(old.mesh);
+      old.mesh.geometry.dispose();
+      old.mesh.material.map.dispose();
+      old.mesh.material.dispose();
+    };
+    if (!win) {
+      drop();
+      patch = { key, mesh: null };
+      return;
+    }
+    const pc = document.createElement("canvas");
+    pc.width = win.cols * win.tileW;
+    pc.height = win.rows * TILE_PX;
+    const ctx = pc.getContext("2d");
+    // Start from the base picture stretched over the patch, so nothing flashes while tiles arrive.
+    const perDeg = canvas.width / 360;
+    const sy = (90 - win.latN) * (canvas.height / 180);
+    const sh = (win.latN - win.latS) * (canvas.height / 180);
+    const span = win.lonE - win.lonW;
+    for (let done = 0; done < span;) {
+      const lon = ((win.lonW + done + 180) % 360 + 360) % 360;   // 0..360 from the picture's left edge
+      const part = Math.min(span - done, 360 - lon);
+      ctx.drawImage(canvas, lon * perDeg, sy, part * perDeg, sh, (done / span) * pc.width, 0, (part / span) * pc.width, pc.height);
+      done += part;
+    }
+    const tex = new THREE.CanvasTexture(pc);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const rad = THREE.MathUtils.degToRad;
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1.0006, Math.min(256, win.cols * 4), Math.max(8, win.rows * 6),
+        rad(win.lonW + 180), rad(span), rad(90 - win.latN), rad(win.latN - win.latS)),
+      new THREE.MeshBasicMaterial({ map: tex })
+    );
+    scene.add(mesh);
+    patch = { key, mesh };
+    drop();
+    const total = tileGrid(win.zoom).cols;
+    for (let r = 0; r < win.rows; r++) {
+      for (let c = 0; c < win.cols; c++) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          if (token !== patchToken) return; // the view moved on
+          ctx.drawImage(img, c * win.tileW, r * TILE_PX, win.tileW, TILE_PX);
+          tex.needsUpdate = true;
+        };
+        img.src = tileUrl(win.zoom, win.row0 + r, ((win.col0 + c) % total + total) % total);
+      }
+    }
+  };
+  let restAt = 0;
+  const lastCam = new THREE.Vector3();
+
   // Site markers: a small dot to see, and a bigger invisible ball around it that is easier to click.
   const markers = [];
   const hitTargets = [];
@@ -107,11 +180,19 @@ export function createGlobe(container, sites, handlers = {}) {
   const addSite = (site) => {
     if (markers.some((m) => m.site.id === site.id)) return;
     const position = new THREE.Vector3(...latLonToXyz(site.lat_deg, site.lon_deg_east, 1.003));
+    // A flat dot with a ring around it, lying on the surface (so it never sinks into the Moon and
+    // thins out naturally towards the edge of the disc).
     const dot = new THREE.Mesh(
-      new THREE.SphereGeometry(MARKER_RADIUS, 16, 12),
-      new THREE.MeshBasicMaterial({ color: colorFor(site) })
+      new THREE.CircleGeometry(MARKER_RADIUS * 0.5, 24),
+      new THREE.MeshBasicMaterial({ color: colorFor(site), side: THREE.DoubleSide })
     );
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(MARKER_RADIUS * 0.8, MARKER_RADIUS, 32),
+      new THREE.MeshBasicMaterial({ color: colorFor(site), side: THREE.DoubleSide, transparent: true, opacity: 0.75 })
+    );
+    dot.add(ring);
     dot.position.copy(position);
+    dot.lookAt(position.clone().multiplyScalar(2)); // face outward
     scene.add(dot);
     const hit = new THREE.Mesh(new THREE.SphereGeometry(MARKER_RADIUS * 2.2, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.copy(position);
@@ -227,6 +308,7 @@ export function createGlobe(container, sites, handlers = {}) {
     for (const m of markers) {
       const on = m.site.id === siteId;
       m.dot.material.color.setHex(on ? COLORS.selected : colorFor(m.site));
+      m.dot.children[0].material.color.setHex(on ? COLORS.selected : colorFor(m.site));
       m.label.classList.toggle("selected", on);
     }
   };
@@ -335,6 +417,14 @@ export function createGlobe(container, sites, handlers = {}) {
     }
     controls.update();
     updateHover();
+    // Camera at rest for a moment (and not mid-flight): load sharper tiles for this view.
+    if (camera.position.distanceToSquared(lastCam) > 1e-10) {
+      lastCam.copy(camera.position);
+      restAt = now + 300;
+    } else if (restAt && now >= restAt && !flight) {
+      restAt = 0;
+      updatePatch();
+    }
     if (pin.visible) {
       const k = reducedMotion() ? 0 : (now % 1600) / 1600; // one pulse every 1.6 s
       const s = Math.min(6, Math.max(0.35, (camera.position.length() - 1) / 0.5));
@@ -342,7 +432,7 @@ export function createGlobe(container, sites, handlers = {}) {
       pin.material.opacity = 0.9 * (1 - k * 0.85);
     }
     // Keep markers a steady size on screen as you zoom, and put each name next to its dot.
-    const scale = Math.min(6, Math.max(0.35, (camera.position.length() - 1) / 0.5));
+    const scale = Math.min(5, Math.max(0.3, (camera.position.length() - 1) / 0.6));
     pendingDot.scale.setScalar(scale);
     // Labels: most important first (selected, model site, your points), and a label that would
     // overlap one already placed is hidden, so names never pile on top of each other.
@@ -402,6 +492,8 @@ export function createGlobe(container, sites, handlers = {}) {
     if (i < 0) return;
     const m = markers[i];
     scene.remove(m.dot, m.hit);
+    m.dot.children[0].geometry.dispose();
+    m.dot.children[0].material.dispose();
     m.dot.geometry.dispose();
     m.dot.material.dispose();
     m.hit.geometry.dispose();

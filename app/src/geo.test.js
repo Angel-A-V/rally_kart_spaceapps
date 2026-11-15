@@ -68,3 +68,26 @@ test("flightPoint: an exactly opposite target still gives a defined path around 
     assert.ok(Math.hypot(...p) >= 2 - 1e-9);
   }
 });
+
+test("detailWindow: close to an equatorial site, a small window of the sharpest tiles", async () => {
+  const { detailWindow } = await import("./geo.js");
+  const w = detailWindow(0.67, 23.47, 3);
+  assert.equal(w.zoom, 7);
+  assert.ok(w.latS <= 0.67 - 3 && w.latN >= 0.67 + 3);
+  assert.ok(w.lonW <= 23.47 - 3 && w.lonE >= 23.47 + 3);
+  assert.ok(w.rows <= 8 && w.cols * w.tileW <= 4096);
+});
+
+test("detailWindow: over a pole it takes every longitude, squeezing tiles to fit", async () => {
+  const { detailWindow } = await import("./geo.js");
+  const w = detailWindow(-89.9, 0, 18);
+  assert.equal(w.lonE - w.lonW, 360);
+  assert.equal(w.latS, -90);
+  assert.ok(w.zoom >= 4 && w.zoom > 3, "sharper than the base picture");
+  assert.ok(w.cols * w.tileW <= 4096 && w.tileW >= 32);
+});
+
+test("detailWindow: nothing to load when the whole Moon is in view", async () => {
+  const { detailWindow } = await import("./geo.js");
+  assert.equal(detailWindow(0, 0, 60, { maxRows: 2 }), null);
+});

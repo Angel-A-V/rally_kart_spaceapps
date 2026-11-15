@@ -17,7 +17,9 @@ breaking anyone else's work.
   4. Compare mode: "A vs B at a glance", "Same time" box, play/pause timeline (Gustavo's wireframe v2,
      `docs/handoffs/gustavo-wireframe-v2.md`). **done** (`src/compare.js`, `src/timeline.js`; the
      player and event ticks are on the analysis panel's slider and both compare cards)
-  5. Polish: lighting/terminator toggle, phone layout, motion. *todo*
+  5. Polish. **partly done:** sharp close-ups (a patch of higher-zoom Moon Trek tiles loads for the area
+     in view once the camera rests: `detailWindow` in `src/geo.js`, `updatePatch` in `src/globe.js`),
+     flat dot-and-ring markers, centred pole views, San Francisco type. *todo:* day/night lighting toggle.
 - Update this list when you finish or start a phase.
 
 ## Design direction (the contract)
