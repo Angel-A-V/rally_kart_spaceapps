@@ -149,7 +149,7 @@ Browser (laptop) --Wi-Fi--> UNO Q Linux side (Python: Horizons data -> Sun az/el
 
 1. The software works out the Sun's azimuth and elevation for the chosen site and date.
 2. It sends `SUN <az> <el>` to the microcontroller.
-3. The firmware homes the disc (turns until the Hall sensor clicks), calls that position azimuth 0, then rotates the disc by the Sun's azimuth, in the direction from section 2. The lamp is fixed at 0° from the Hall sensor, so no extra offset is needed.
+3. The firmware homes the disc (turns until the Hall sensor clicks), calls that position azimuth 0, then turns the disc so the terrain mark at the Sun's azimuth faces the lamp: clockwise (seen from above) by (L0 − azimuth) mod 360, where L0 is the terrain mark facing the lamp at home. **Not** clockwise by the azimuth itself, which mirrors the model (a Sun in the east would appear in the west). Section 2's "clockwise" is the drift over time. L0: 0° here, but Gustavo's wiring guide says 180° **[verify on the build]**. Full rule and test addresses: `model-link-for-board.md`.
 4. The photoresistor on the centre post reads how bright the lamp looks, so the model can show whether the terrain wall is shading the "lander".
 
 The spare ELEGOO UNO R3 is only for bench tests. The UNO Q's internal bridge API is **[verify]**.
