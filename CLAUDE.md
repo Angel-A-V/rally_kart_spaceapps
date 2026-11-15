@@ -80,6 +80,8 @@ Interface contract fields still blank in the plan: model footprint, stepper/serv
 
 ## Conventions for working in this repo
 
+- **Website UI work:** read `app/CLAUDE.md` first (design direction, layout, file ownership, globe API,
+  how to verify). The UI overhaul lives on the `ui-overhaul` branch until it beats `main`.
 - Items tagged **[verify]** in the plan are unconfirmed (site coordinates, part dimensions, pin numbers, UNO Q Bridge API, orbital numbers). Do not treat them as fact. Check before depending on them.
 - Build small testable pieces first: stepper moves N degrees, then reads pot, then parses `SUN 215 1.2`, then the app.
 - Explain things in plain language for a mixed ME/software team. Define terms (azimuth, elevation, libration, LOLA, DTE) when used.

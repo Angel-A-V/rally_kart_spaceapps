@@ -37,3 +37,33 @@ export function tileGrid(zoom) {
 export function tileUrl(zoom, row, col) {
   return `${TILE_BASE}/${zoom}/${row}/${col}.jpg`;
 }
+
+// A point on the camera's path from one position to another: the direction turns along the great
+// circle (so the flight goes around the Moon, never through it) while the distance eases.
+export function flightPoint(from, to, t) {
+  const r0 = Math.hypot(...from);
+  const r1 = Math.hypot(...to);
+  const a = from.map((v) => v / r0);
+  const b = to.map((v) => v / r1);
+  const dot = Math.min(1, Math.max(-1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+  const omega = Math.acos(dot);
+  let dir;
+  if (omega < 1e-6) {
+    dir = a;
+  } else if (Math.PI - omega < 1e-3) {
+    // Almost opposite: go over the top (any perpendicular works) so the path stays defined.
+    const up = Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    const mid = [a[1] * up[2] - a[2] * up[1], a[2] * up[0] - a[0] * up[2], a[0] * up[1] - a[1] * up[0]];
+    const m = Math.hypot(...mid);
+    const half = t < 0.5 ? [a, mid.map((v) => v / m), t * 2] : [mid.map((v) => v / m), b, t * 2 - 1];
+    return flightPoint(half[0].map((v) => v * (r0 + (r1 - r0) * t)), half[1].map((v) => v * (r0 + (r1 - r0) * t)), half[2]);
+  } else {
+    const s0 = Math.sin((1 - t) * omega) / Math.sin(omega);
+    const s1 = Math.sin(t * omega) / Math.sin(omega);
+    dir = a.map((v, i) => v * s0 + b[i] * s1);
+  }
+  // Pull back a little mid-flight on long hops, like a real flyover, then settle at the new distance.
+  const lift = 0.35 * Math.sin(Math.PI * t) * Math.min(1, omega / 1.2);
+  const r = r0 + (r1 - r0) * t + lift;
+  return dir.map((v) => v * r);
+}

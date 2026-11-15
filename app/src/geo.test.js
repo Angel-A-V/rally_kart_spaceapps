@@ -50,3 +50,21 @@ test("tileUrl: zoom / row / column, in that order", () => {
     "https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/default/default028mm/2/1/5.jpg"
   );
 });
+
+test("flightPoint: starts and ends where asked, never dips inside the Moon", async () => {
+  const { flightPoint } = await import("./geo.js");
+  const from = [0, 0, 3.4];
+  const to = latLonToXyz(-89.8, 203.7, 1.55);
+  for (const [i, v] of flightPoint(from, to, 0).entries()) assert.ok(Math.abs(v - from[i]) < 1e-9);
+  for (const [i, v] of flightPoint(from, to, 1).entries()) assert.ok(Math.abs(v - to[i]) < 1e-9);
+  for (let t = 0; t <= 1; t += 0.05) assert.ok(Math.hypot(...flightPoint(from, to, t)) >= 1.5, `inside at t=${t}`);
+});
+
+test("flightPoint: an exactly opposite target still gives a defined path around the Moon", async () => {
+  const { flightPoint } = await import("./geo.js");
+  for (let t = 0; t <= 1; t += 0.1) {
+    const p = flightPoint([0, 0, 2], [0, 0, -2], t);
+    assert.ok(p.every(Number.isFinite), `NaN at t=${t}`);
+    assert.ok(Math.hypot(...p) >= 2 - 1e-9);
+  }
+});
