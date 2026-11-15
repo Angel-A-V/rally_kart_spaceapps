@@ -37,3 +37,67 @@ export function tileGrid(zoom) {
 export function tileUrl(zoom, row, col) {
   return `${TILE_BASE}/${zoom}/${row}/${col}.jpg`;
 }
+
+// A point on the camera's path from one position to another: the direction turns along the great
+// circle (so the flight goes around the Moon, never through it) while the distance eases.
+export function flightPoint(from, to, t) {
+  const r0 = Math.hypot(...from);
+  const r1 = Math.hypot(...to);
+  const a = from.map((v) => v / r0);
+  const b = to.map((v) => v / r1);
+  const dot = Math.min(1, Math.max(-1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+  const omega = Math.acos(dot);
+  let dir;
+  if (omega < 1e-6) {
+    dir = a;
+  } else if (Math.PI - omega < 1e-3) {
+    // Almost opposite: go over the top (any perpendicular works) so the path stays defined.
+    const up = Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    const mid = [a[1] * up[2] - a[2] * up[1], a[2] * up[0] - a[0] * up[2], a[0] * up[1] - a[1] * up[0]];
+    const m = Math.hypot(...mid);
+    const half = t < 0.5 ? [a, mid.map((v) => v / m), t * 2] : [mid.map((v) => v / m), b, t * 2 - 1];
+    return flightPoint(half[0].map((v) => v * (r0 + (r1 - r0) * t)), half[1].map((v) => v * (r0 + (r1 - r0) * t)), half[2]);
+  } else {
+    const s0 = Math.sin((1 - t) * omega) / Math.sin(omega);
+    const s1 = Math.sin(t * omega) / Math.sin(omega);
+    dir = a.map((v, i) => v * s0 + b[i] * s1);
+  }
+  // Pull back a little mid-flight on long hops, like a real flyover, then settle at the new distance.
+  const lift = 0.35 * Math.sin(Math.PI * t) * Math.min(1, omega / 1.2);
+  const r = r0 + (r1 - r0) * t + lift;
+  return dir.map((v) => v * r);
+}
+
+// Which sharper Moon Trek tiles to load for the area in view (the "detail patch" on the globe).
+// lat0, lon0: the point under the camera; viewDeg: how many degrees of the Moon the view spans
+// from its centre to its edge. Returns null when the base picture is already sharp enough, or
+// { zoom, row0, rows, col0, cols, tileW, latN, latS, lonW, lonE } where tiles (row0.., col0..) at
+// `zoom` cover latS..latN and lonW..lonE (lonE may pass 180: columns wrap), drawn tileW pixels wide.
+export function detailWindow(lat0, lon0, viewDeg, { baseZoom = 3, maxZoom = 7, maxRows = 8, maxPx = 4096, tile = 256, maxTiles = 400 } = {}) {
+  const half = Math.min(60, Math.max(0.5, viewDeg));
+  for (let zoom = maxZoom; zoom > baseZoom; zoom--) {
+    const step = 180 / 2 ** zoom;                 // degrees per tile (both directions)
+    const total = 2 * 2 ** zoom;                  // columns around the Moon
+    const row0 = Math.max(0, Math.floor((90 - (lat0 + half)) / step));
+    const row1 = Math.min(2 ** zoom - 1, Math.floor((90 - (lat0 - half)) / step));
+    const rows = row1 - row0 + 1;
+    if (rows > maxRows) continue;
+    const latN = 90 - row0 * step;
+    const latS = 90 - (row1 + 1) * step;
+    // Near a pole the view reaches every longitude; elsewhere widen by 1 / cos(latitude).
+    const worst = Math.max(Math.abs(lat0 + half), Math.abs(lat0 - half));
+    const lonHalf = worst >= 88 ? 180 : Math.min(180, half / Math.cos((worst * Math.PI) / 180));
+    let col0 = 0;
+    let cols = total;
+    if (lonHalf < 180) {
+      col0 = Math.floor((lon0 - lonHalf + 180) / step);
+      cols = Math.min(total, Math.floor((lon0 + lonHalf + 180) / step) - col0 + 1);
+      if (cols === total) col0 = 0;
+    }
+    const tileW = Math.min(tile, Math.floor(maxPx / cols));
+    if (tileW < 32 || rows * cols > maxTiles) continue; // too squashed, or too many downloads
+    const lonW = -180 + col0 * step;
+    return { zoom, row0, rows, col0, cols, tileW, latN, latS, lonW, lonE: lonW + cols * step };
+  }
+  return null;
+}

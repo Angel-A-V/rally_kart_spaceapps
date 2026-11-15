@@ -1,5 +1,8 @@
 import "./style.css";
-import { loadChecks, loadCrosscheck, loadCustomPoint, loadSites, loadSiteAnalysis } from "./data.js";
+import { loadChecks, loadCrosscheck, loadCustomPoint, loadLunarNames, loadSites, loadSiteAnalysis } from "./data.js";
+import { parseNames } from "./features.js";
+import { atAGlance } from "./compare.js";
+import { advance, playerHtml, ticksHtml } from "./timeline.js";
 import { accuracyNote, accuracyPanel } from "./accuracy.js";
 import { skyDiagram } from "./skyDiagram.js";
 import { numbersPanel } from "./numbersPanel.js";
@@ -58,6 +61,7 @@ function slotControls(letter, sites, siteId, last, index) {
       <select id="site-${id}">${siteOptions(sites, siteId)}</select>
       <label for="time-${id}">Time <output id="out-${id}"></output></label>
       <input type="range" id="time-${id}" min="0" max="${last}" value="${index}">
+      <div class="slider-extras"><div data-ticks="${id}" id="ticks-${id}"></div>${playerHtml(id)}</div>
       <p class="site-description" id="desc-${id}"></p>
     </div>`;
 }
@@ -73,32 +77,146 @@ function legend() {
     </ul>`;
 }
 
-// The section with the 3D Moon. The globe itself is added by createGlobe() after the page is built.
-function globeSection() {
+// ---------- the full-screen layout (app/CLAUDE.md "Layout map") ----------
+
+const MENU = [
+  ["sites", "Sites", "Every site, grouped"],
+  ["compare", "Compare", "Two sites or two moments"],
+  ["add", "Add a point", "Type coordinates"],
+  ["plan", "Plan a mission", "Best time to land"],
+  ["year", "The year", "Every site over a year"],
+  ["table", "Hourly table", "Every hour, one site"],
+  ["accuracy", "How accurate?", "Checked against NASA"],
+  ["sources", "Data sources", "Where every number comes from"],
+];
+
+function hudTop(sites) {
   return `
-    <section class="card globe-card">
-      <h2>Pick any point on the Moon</h2>
-      <div class="globe-layout">
-        <div>
-          <div id="globe" class="globe-wrap"></div>
-          <div class="globe-controls">
-            <button type="button" id="view-pole">South pole view</button>
-            <button type="button" id="view-north">North pole view</button>
-            <button type="button" id="view-moon">Whole Moon</button>
-            <span class="sub">Drag to turn, scroll to zoom. <strong>Click anywhere on the surface</strong> to analyse
-            that spot with real terrain, or click a marker to open that site.</span>
-          </div>
-          <ul class="legend">
-            <li><span class="dot named"></span> Named feature (NASA Moon Trek)</li>
-            <li><span class="dot model"></span> Model site</li>
-            <li><span class="dot custom"></span> Your points</li>
-            <li><span class="dot pending"></span> Working on it</li>
-            <li><span class="dot picked"></span> Selected</li>
-          </ul>
-        </div>
-        <div id="globe-info" class="globe-info"></div>
+    <header class="hud hud-top">
+      <button type="button" id="menu-btn" class="icon-btn" aria-label="Menu" aria-expanded="false" aria-controls="drawer">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="brand">
+        <h1>Lunar Landing Site Navigator</h1>
+        <p>Sun for power · Earth for radio · NASA data</p>
+      </div>
+      <form class="search" id="search-form" role="search">
+        <label for="site-search" class="visually-hidden">Find a site</label>
+        <input id="site-search" list="site-list" placeholder="Find a site…" autocomplete="off">
+        <datalist id="site-list">${sites.map((s) => `<option value="${s.label}">`).join("")}</datalist>
+      </form>
+    </header>`;
+}
+
+function quickViews() {
+  const views = [["near", "Near side"], ["far", "Far side"], ["pole", "South pole"], ["north", "North pole"], ["moon", "Whole Moon"]];
+  return `
+    <nav class="hud quick-views" aria-label="Camera views">
+      ${views.map(([v, label]) => `<button type="button" data-view="${v}">${label}</button>`).join("")}
+    </nav>
+    <div class="hud readout" id="readout" aria-hidden="true">Move over the Moon</div>
+    <ul class="hud legend-mini" aria-label="Map legend">
+      <li><span class="dot named"></span> Site</li>
+      <li><span class="dot model"></span> Model site</li>
+      <li><span class="dot custom"></span> Your points</li>
+      <li><span class="dot pending"></span> Working</li>
+    </ul>`;
+}
+
+function drawer() {
+  return `
+    <nav id="drawer" class="drawer glass" aria-label="Menu" hidden>
+      ${MENU.map(([page, title, sub]) => `<button type="button" data-page="${page}"><strong>${title}</strong><span>${sub}</span></button>`).join("")}
+    </nav>`;
+}
+
+// Group the sites for the "Sites" page: what kind of place each one is.
+function siteGroup(s) {
+  if (s.is_model_site) return "Model site";
+  if (s.id.startsWith("custom_")) return "Your points";
+  if (/landing site$/.test(s.label)) return "Past landings";
+  return s.lat_deg < 0 ? "South pole region" : "North pole region";
+}
+const GROUP_ORDER = ["Model site", "South pole region", "North pole region", "Past landings", "Your points"];
+
+function sitesList(sites) {
+  const pct = (v) => `${Math.round(v)}%`;
+  return GROUP_ORDER.map((g) => {
+    const items = sites.filter((s) => siteGroup(s) === g);
+    if (!items.length) return "";
+    return `<h3>${g}</h3><ul class="site-list">${items.map((s) => `
+      <li><button type="button" data-site="${s.id}">
+        <span class="name">${s.label}</span>
+        <span class="mini"><span class="sun">☀ ${pct(s.year.sun_visible_pct)}</span>
+        <span class="earth">⊕ ${pct(s.year.earth_visible_pct)}</span>
+        <span class="both">both ${pct(s.year.both_visible_pct)}</span></span>
+      </button></li>`).join("")}</ul>`;
+  }).join("");
+}
+
+function sheet(pages) {
+  return `
+    <section id="sheet" class="sheet glass" aria-labelledby="sheet-title" hidden>
+      <header class="sheet-head">
+        <h2 id="sheet-title" tabindex="-1"></h2>
+        <button type="button" id="sheet-close" class="icon-btn" aria-label="Close">×</button>
+      </header>
+      <div class="sheet-body">
+        ${pages.map(([page, html]) => `<div class="sheet-page" data-page="${page}" hidden>${html}</div>`).join("")}
       </div>
     </section>`;
+}
+
+function panel() {
+  return `
+    <aside id="panel" class="panel glass" aria-label="Site analysis">
+      <button type="button" id="panel-close" class="icon-btn panel-close" aria-label="Close the analysis">×</button>
+      <div id="globe-info" class="globe-info" aria-live="polite"></div>
+    </aside>
+    <div id="ctx" class="ctx-menu glass" role="menu" hidden></div>`;
+}
+
+// The empty state of the analysis panel.
+function panelHint() {
+  return `
+    <h3>Pick a place on the Moon</h3>
+    <p>Click a site to fly there and see how often the Sun (power) and Earth (radio) are up.
+    <strong>Right-click</strong> (or press and hold) anywhere to analyse any point with NASA data.</p>
+    <p><button type="button" class="primary" data-site="shackleton_rim">Start at the model site: Shackleton rim</button></p>`;
+}
+
+// A clicked spot that has not been analysed yet.
+function pointCard(lat, lon) {
+  const where = `${lat.toFixed(3)}°, ${(((lon % 360) + 360) % 360).toFixed(3)}° E`;
+  return `
+    <h3>${where}</h3>
+    <p>Not analysed yet. This asks NASA JPL Horizons where the Sun and Earth are from here for a year, and builds
+    the skyline from NASA LOLA terrain (a few seconds).</p>
+    <p><button type="button" class="primary" data-analyse="${lat},${lon}">Analyse this point</button></p>`;
+}
+
+// The sky at one moment for the selected site, with its own time slider (inside the analysis panel).
+function focusSky(analysis, rows, index) {
+  const row = rows[index];
+  const mark = (v) => (v ? "✓ up" : "✗ blocked");
+  return `
+    <h4>The sky here <output id="focus-out">${row.time_utc} UTC</output></h4>
+    <input type="range" id="focus-time" min="0" max="${rows.length - 1}" value="${index}" aria-label="Time">
+    <div data-ticks="focus">${ticksHtml(rows)}</div>
+    ${playerHtml("focus")}
+    <div id="focus-view">${skyDiagram(analysis.skyline_deg, row)}
+      <p class="focus-now"><span class="sun">Sun ${mark(row.sun_visible)}</span> · <span class="earth">Earth ${mark(row.earth_visible)}</span></p>
+    </div>`;
+}
+
+function panelActions(id) {
+  return `
+    <div class="panel-actions">
+      <button type="button" data-open="compare" data-for="${id}">Compare with…</button>
+      <button type="button" data-open="plan" data-for="${id}">Plan a mission here</button>
+      <button type="button" data-open="table" data-for="${id}">Hourly table</button>
+      ${id.startsWith("custom_") ? `<button type="button" class="remove-point" data-remove="${id}">Remove this point</button>` : ""}
+    </div>`;
 }
 
 // The "analyse your own point" card. The form is built once; results go to #custom-status.
@@ -196,6 +314,9 @@ function sourcesPanel(analyses) {
         at the model site they raise the skyline by up to about 1.5° in some directions.</li>
         <li><strong>Moon picture:</strong> NASA LRO wide-angle camera global mosaic, loaded live from NASA Moon Trek's
         tile service. The stars behind it are decoration, not a real star map.</li>
+        <li><strong>Feature names on the Moon:</strong> the official IAU names from the
+        <a href="https://planetarynames.wr.usgs.gov/" target="_blank" rel="noopener">USGS Gazetteer of Planetary Nomenclature</a>
+        (the same names NASA Moon Trek shows), with each feature's size deciding the zoom at which its name appears.</li>
         <li><strong>Visible</strong> means the body's angle above a flat horizon is greater than the skyline in its direction.
         <strong>Margin</strong> is that difference.</li>
         <li><strong>Windows</strong> are unbroken stretches of visible samples in the one-year data (6-hour steps), so their
@@ -234,22 +355,14 @@ function tableSection(sites, siteId) {
 
 function shell(sites, analyses, slots, plan, check, checks) {
   const last = analyses[sites[0].id].rows.length - 1;
-  return `
-    <h1>Lunar Landing Site Navigator</h1>
-    <p class="intro">Which site, and when? Compare landing sites anywhere on the Moon by how long the Sun (power) and
-    Earth (direct radio contact) stay above the local skyline, and find the best time to land. The curated sites
-    cover both poles and past landing sites; click anywhere on the 3D Moon to analyse any other spot.</p>
-    ${globeSection()}
-    ${customSection()}
-    ${planSection(sites, plan)}
-    ${statsPanel(sites)}
-    ${accuracyPanel(check, sites, checks)}
+  const compare = `
     <section class="moment">
-      <h2>Look at one moment: where are the Sun and Earth in the sky?</h2>
       <p>Pick a site and a time in each scenario to compare two sites, or two moments at the same site
       (30 days of hourly data).</p>
       ${legend()}
       ${settingsControls()}
+      <label class="same-time"><input type="checkbox" id="same-time"> Same time for A and B
+        <span class="sub">(one time control drives both cards)</span></label>
       <div class="cards">
         <section class="card">
           ${slotControls("A", sites, slots.a.site, last, slots.a.index)}
@@ -260,16 +373,39 @@ function shell(sites, analyses, slots, plan, check, checks) {
           <div id="view-b"></div>
         </section>
       </div>
+      <h3>A vs B at a glance</h3>
+      <div id="glance" class="table-wrap plain"></div>
       <h3>Which is better?</h3>
       <p class="verdict" id="compare-verdict" aria-live="polite"></p>
-    </section>
-    ${tableSection(sites, slots.a.site)}
-    ${sourcesPanel(analyses)}`;
+    </section>`;
+  const pages = [
+    ["sites", `<div id="sites-list">${sitesList(sites)}</div>`],
+    ["compare", compare],
+    ["add", customSection()],
+    ["plan", planSection(sites, plan)],
+    ["year", statsPanel(sites)],
+    ["table", tableSection(sites, slots.a.site)],
+    ["accuracy", accuracyPanel(check, sites, checks)],
+    ["sources", sourcesPanel(analyses)],
+  ];
+  return `
+    <div id="globe" class="stage"></div>
+    ${hudTop(sites)}
+    ${quickViews()}
+    ${drawer()}
+    ${sheet(pages)}
+    ${panel()}`;
 }
 
 function drawSlot(id, slot, analyses) {
   const analysis = analyses[slot.site];
-  const row = rowsFor(analyses, slot.site)[slot.index]; // visible/next change follow the current rules
+  const rows = rowsFor(analyses, slot.site);
+  const row = rows[slot.index]; // visible/next change follow the current rules
+  const key = `${slot.site}|${view.settings.sunRule}|${view.settings.earthMarginDeg}`;
+  if (slot.ticksKey !== key) { // the ticks depend on the site and the rules, not on the time
+    document.querySelector(`#ticks-${id}`).innerHTML = ticksHtml(rows);
+    slot.ticksKey = key;
+  }
   document.querySelector(`#out-${id}`).textContent = `${row.time_utc} UTC`;
   document.querySelector(`#desc-${id}`).textContent = analysis.description;
   document.querySelector(`#view-${id}`).innerHTML = skyDiagram(analysis.skyline_deg, row) + numbersPanel(row);
@@ -286,6 +422,9 @@ function drawVerdict() {
     return { name, label: analyses[slot.site].label, rows, row: rows[slot.index] };
   };
   el.innerHTML = compareVerdict(side("A", slots.a), side("B", slots.b));
+  const year = (id) => view.sites?.find((s) => s.id === id)?.year;
+  document.querySelector("#glance").innerHTML = atAGlance(
+    { ...side("A", slots.a), year: year(slots.a.site) }, { ...side("B", slots.b), year: year(slots.b.site) });
 }
 
 async function main() {
@@ -307,6 +446,7 @@ async function main() {
     app.innerHTML = shell(sites, analyses, slots, plan, check, checks);
     view.slots = slots;
     view.analyses = analyses;
+    view.sites = sites;
 
     // Planning section
     const planHolder = document.querySelector("#plan-holder");
@@ -317,38 +457,316 @@ async function main() {
     let globe = null;
     try {
       const { createGlobe } = await import("./globe.js");
-      globe = createGlobe(
-        document.querySelector("#globe"), sites,
-        (id) => selectSite(id),
-        (lat, lon) => analysePoint(lat, lon, "globe"),
-      );
-      document.querySelector("#view-pole").addEventListener("click", () => globe.setView("pole"));
-      document.querySelector("#view-north").addEventListener("click", () => globe.setView("north"));
-      document.querySelector("#view-moon").addEventListener("click", () => globe.setView("moon"));
+      const readout = document.querySelector("#readout");
+      globe = createGlobe(document.querySelector("#globe"), sites, {
+        onSelect: (id) => selectSite(id, { fly: true }),
+        onPick: (lat, lon) => pickPoint(lat, lon),
+        onContext: (lat, lon, x, y) => openContextMenu(lat, lon, x, y),
+        onHover: (lat, lon) => {
+          readout.textContent = lat === null
+            ? "Move over the Moon"
+            : `${lat >= 0 ? "+" : ""}${lat.toFixed(3)}°  ${(((lon % 360) + 360) % 360).toFixed(3)}° E`;
+        },
+      });
+      for (const b of document.querySelectorAll("[data-view]")) {
+        b.addEventListener("click", () => globe.setView(b.dataset.view));
+      }
+      loadLunarNames().then((names) => globe.setFeatures(parseNames(names))); // after the Moon is up
     } catch (error) {
       document.querySelector("#globe").innerHTML =
-        `<p class="error">The 3D Moon could not start (${error.message}). Use the site pickers below instead.</p>`;
+        `<p class="error stage-error">The 3D Moon could not start (${String(error.message).replace(/</g, "&lt;")}).
+        Open the menu (☰) to use every site and page without it.</p>`;
     }
 
-    // One place that changes the selected site, so the globe, the info box and the plan agree.
-    function selectSite(id) {
+    // ----- panels: the ☰ drawer, the sheet with the menu pages, the analysis panel, the context menu -----
+    const panelEl = document.querySelector("#panel");
+    const drawerEl = document.querySelector("#drawer");
+    const sheetEl = document.querySelector("#sheet");
+    const ctxEl = document.querySelector("#ctx");
+    const menuBtn = document.querySelector("#menu-btn");
+    const focusState = { index: 0 };
+
+    const setDrawer = (open) => {
+      drawerEl.hidden = !open;
+      menuBtn.setAttribute("aria-expanded", String(open));
+      if (open) drawerEl.querySelector("button").focus();
+    };
+    const openPage = (page) => {
+      for (const p of sheetEl.querySelectorAll(".sheet-page")) p.hidden = p.dataset.page !== page;
+      for (const b of drawerEl.querySelectorAll("[data-page]")) b.classList.toggle("active", b.dataset.page === page);
+      const title = MENU.find(([p]) => p === page)[1];
+      document.querySelector("#sheet-title").textContent = title;
+      sheetEl.hidden = false;
+      sheetEl.querySelector(".sheet-body").scrollTop = 0;
+      document.querySelector("#sheet-title").focus();
+    };
+    const closeSheet = () => {
+      sheetEl.hidden = true;
+      for (const b of drawerEl.querySelectorAll("[data-page]")) b.classList.remove("active");
+    };
+    const closeContextMenu = () => (ctxEl.hidden = true);
+
+    menuBtn.addEventListener("click", () => setDrawer(drawerEl.hidden));
+    drawerEl.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-page]");
+      if (!b) return;
+      openPage(b.dataset.page);
+      if (matchMedia("(max-width: 760px)").matches) setDrawer(false);
+    });
+    document.querySelector("#sheet-close").addEventListener("click", closeSheet);
+    document.querySelector("#panel-close").addEventListener("click", () => {
+      panelEl.classList.add("closed");
+      syncInset();
+      if (globe) {
+        globe.select(null);
+        globe.setPin(null);
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!ctxEl.hidden) return closeContextMenu();
+      if (!sheetEl.hidden) return closeSheet();
+      if (!drawerEl.hidden) {
+        setDrawer(false);
+        menuBtn.focus();
+      }
+    });
+    document.addEventListener("pointerdown", (e) => {
+      if (!ctxEl.hidden && !ctxEl.contains(e.target)) closeContextMenu();
+    });
+
+    // Keep the Moon centred in the space the analysis panel leaves free (desktop only).
+    const syncInset = () => {
+      if (!globe) return;
+      const open = !panelEl.classList.contains("closed");
+      const phone = matchMedia("(max-width: 760px)").matches;
+      if (!open) globe.setInset(0, 0);
+      else if (phone) globe.setInset(0, Math.min(panelEl.offsetHeight, innerHeight * 0.52) + 20);
+      else globe.setInset(panelEl.offsetWidth + 32, 0);
+    };
+    addEventListener("resize", syncInset);
+    const showPanel = (html) => {
+      panelEl.classList.remove("closed");
+      document.querySelector("#globe-info").innerHTML = html;
+      syncInset();
+    };
+
+    // One place that changes the selected site, so the globe, the analysis panel and the plan agree.
+    function selectSite(id, { fly = false } = {}) {
+      const site = sites.find((s) => s.id === id);
+      if (!site) return;
       plan.site = id;
       document.querySelector("#plan-site").value = id;
-      const removable = id.startsWith("custom_") // only points you added yourself can be removed
-        ? `<button type="button" class="remove-point" data-remove="${id}">Remove this point</button>`
-        : "";
-      const site = sites.find((s) => s.id === id);
-      document.querySelector("#globe-info").innerHTML = siteInfo(site) + accuracyNote(check?.sites[id], site, checks) + removable;
-      if (globe) globe.select(id);
+      focusState.index = Math.min(focusState.index, analyses[id].rows.length - 1);
+      if (players.focus) players.focus.playing = false; // its buttons are about to be replaced
+      showPanel(siteInfo(site) + focusSky(analyses[id], rowsFor(analyses, id), focusState.index) +
+        panelActions(id) + accuracyNote(check?.sites[id], site, checks));
+      if (globe) {
+        globe.select(id);
+        globe.setPin(site.lat_deg, site.lon_deg_east);
+        if (fly) globe.flyTo(site.lat_deg, site.lon_deg_east);
+      }
       drawPlan();
     }
 
-    document.querySelector("#plan-site").addEventListener("change", (e) => selectSite(e.target.value));
+    // A bare spot clicked: fly there, mark it, and offer to analyse it.
+    function pickPoint(lat, lon) {
+      closeContextMenu();
+      if (globe) {
+        globe.select(null);
+        globe.setPin(lat, lon);
+        globe.flyTo(lat, lon);
+      }
+      showPanel(pointCard(lat, lon));
+    }
+
+    function openContextMenu(lat, lon, x, y) {
+      const where = `${lat.toFixed(3)}°, ${(((lon % 360) + 360) % 360).toFixed(3)}° E`;
+      ctxEl.innerHTML = `
+        <p class="ctx-where">${where}</p>
+        <button type="button" role="menuitem" data-ctx="analyse">Analyse this point</button>
+        <button type="button" role="menuitem" data-ctx="fly">Fly here</button>
+        <button type="button" role="menuitem" data-ctx="copy">Copy coordinates</button>`;
+      ctxEl.dataset.lat = lat;
+      ctxEl.dataset.lon = lon;
+      ctxEl.hidden = false;
+      const box = ctxEl.getBoundingClientRect();
+      ctxEl.style.left = `${Math.min(x, innerWidth - box.width - 8)}px`;
+      ctxEl.style.top = `${Math.min(y, innerHeight - box.height - 8)}px`;
+      ctxEl.querySelector("button").focus();
+    }
+    ctxEl.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-ctx]");
+      if (!b) return;
+      const lat = Number(ctxEl.dataset.lat);
+      const lon = Number(ctxEl.dataset.lon);
+      closeContextMenu();
+      if (b.dataset.ctx === "analyse") analysePoint(lat, lon, "globe");
+      if (b.dataset.ctx === "fly") pickPoint(lat, lon);
+      if (b.dataset.ctx === "copy") {
+        const text = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        try {
+          await navigator.clipboard.writeText(text);
+          showPanel(`<h3>Copied</h3><p><code>${text}</code></p>`);
+        } catch {
+          showPanel(`<h3>Coordinates</h3><p><code>${text}</code></p>`);
+        }
+      }
+    });
+
+    // Everything inside the analysis panel and the sites list is wired by delegation (it is redrawn often).
+    document.addEventListener("click", (e) => {
+      const site = e.target.closest("[data-site]");
+      if (site && !site.matches("li[data-site]")) {
+        selectSite(site.dataset.site, { fly: true });
+        if (matchMedia("(max-width: 760px)").matches) closeSheet();
+        return;
+      }
+      const analyse = e.target.closest("[data-analyse]");
+      if (analyse) {
+        const [lat, lon] = analyse.dataset.analyse.split(",").map(Number);
+        return analysePoint(lat, lon, "globe");
+      }
+      const open = e.target.closest("[data-open]");
+      if (open) {
+        const id = open.dataset.for;
+        if (open.dataset.open === "compare") {
+          slots.a.site = id;
+          document.querySelector("#site-a").value = id;
+          drawSlot("a", slots.a, analyses);
+        }
+        if (open.dataset.open === "table") {
+          document.querySelector("#table-site").value = id;
+          drawTable(id);
+        }
+        openPage(open.dataset.open);
+      }
+    });
+    function drawFocus() {
+      const rows = rowsFor(analyses, plan.site);
+      const row = rows[focusState.index];
+      const mark = (v) => (v ? "✓ up" : "✗ blocked");
+      const out = document.querySelector("#focus-out");
+      if (!out) return;
+      out.textContent = `${row.time_utc} UTC`;
+      document.querySelector("#focus-view").innerHTML = skyDiagram(analyses[plan.site].skyline_deg, row) +
+        `<p class="focus-now"><span class="sun">Sun ${mark(row.sun_visible)}</span> · <span class="earth">Earth ${mark(row.earth_visible)}</span></p>`;
+    }
+    panelEl.addEventListener("input", (e) => {
+      if (e.target.id !== "focus-time") return;
+      focusState.index = Number(e.target.value);
+      drawFocus();
+    });
+
+    // ----- time playback (play/pause, step, speed, loop) and the event ticks, for every slider -----
+    const players = {}; // id ("focus", "a", "b") -> { playing, speed, loop, carry }
+    const sameTime = () => document.querySelector("#same-time").checked;
+    const getIndex = (id) => (id === "focus" ? focusState.index : slots[id].index);
+    const lastIndex = (id) => rowsFor(analyses, id === "focus" ? plan.site : slots[id].site).length - 1;
+    function setIndex(id, i) {
+      if (id === "focus") {
+        focusState.index = i;
+        const el = document.querySelector("#focus-time");
+        if (el) el.value = i;
+        return drawFocus();
+      }
+      for (const key of id === "a" && sameTime() ? ["a", "b"] : [id]) {
+        slots[key].index = i;
+        document.querySelector(`#time-${key}`).value = i;
+        drawSlot(key, slots[key], analyses);
+      }
+    }
+    const playerState = (id) => (players[id] ||= { playing: false, speed: 6, loop: true, carry: 0 });
+    const showPlaying = (id) => {
+      const b = document.querySelector(`[data-player="${id}"] [data-act="play"]`);
+      if (!b) return;
+      const on = playerState(id).playing;
+      b.textContent = on ? "⏸" : "▶";
+      b.setAttribute("aria-pressed", String(on));
+      b.setAttribute("aria-label", on ? "Pause" : "Play");
+    };
+    let rafId = null;
+    let lastFrame = null;
+    function playFrame(now) {
+      const active = Object.entries(players).filter(([, p]) => p.playing);
+      if (!active.length) {
+        rafId = null;
+        lastFrame = null;
+        return;
+      }
+      const dt = lastFrame === null ? 0 : Math.min(250, now - lastFrame); // no big jump after a hidden tab
+      lastFrame = now;
+      for (const [id, p] of active) {
+        if (!document.querySelector(`[data-player="${id}"]`)) { // its panel was redrawn
+          p.playing = false;
+          continue;
+        }
+        const r = advance({ index: getIndex(id), carry: p.carry }, dt, p.speed, lastIndex(id), p.loop);
+        p.carry = r.carry;
+        if (r.index !== getIndex(id)) setIndex(id, r.index);
+        if (r.ended) {
+          p.playing = false;
+          showPlaying(id);
+        }
+      }
+      rafId = requestAnimationFrame(playFrame);
+    }
+    document.addEventListener("click", (e) => {
+      const tick = e.target.closest("[data-jump]");
+      if (tick) return setIndex(tick.closest("[data-ticks]").dataset.ticks, Number(tick.dataset.jump));
+      const btn = e.target.closest("[data-player] button[data-act]");
+      if (!btn) return;
+      const id = btn.closest("[data-player]").dataset.player;
+      const p = playerState(id);
+      const i = getIndex(id);
+      if (btn.dataset.act === "back") setIndex(id, Math.max(0, i - 1));
+      if (btn.dataset.act === "fwd") setIndex(id, Math.min(lastIndex(id), i + 1));
+      if (btn.dataset.act === "play") {
+        p.playing = !p.playing;
+        p.carry = 0;
+        if (p.playing && i >= lastIndex(id) && !p.loop) setIndex(id, 0);
+        showPlaying(id);
+        if (p.playing && rafId === null) rafId = requestAnimationFrame(playFrame);
+      }
+    });
+    document.addEventListener("change", (e) => {
+      const el = e.target.closest("[data-player] [data-act]");
+      if (!el) return;
+      const p = playerState(el.closest("[data-player]").dataset.player);
+      if (el.dataset.act === "speed") p.speed = Number(el.value);
+      if (el.dataset.act === "loop") p.loop = el.checked;
+    });
+    document.querySelector("#same-time").addEventListener("change", (e) => {
+      const on = e.target.checked;
+      document.querySelector("#time-b").disabled = on;
+      document.querySelector('[data-player="b"]').hidden = on;
+      if (on) {
+        playerState("b").playing = false;
+        showPlaying("b");
+        setIndex("a", slots.a.index);
+      }
+    });
+
+    // Search box: jump to a site by name.
+    document.querySelector("#search-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = document.querySelector("#site-search").value.trim().toLowerCase();
+      const hit = sites.find((s) => s.label.toLowerCase() === q) || sites.find((s) => s.label.toLowerCase().includes(q));
+      if (hit) selectSite(hit.id, { fly: true });
+    });
+    document.querySelector("#site-search").addEventListener("change", (e) => {
+      const hit = sites.find((s) => s.label === e.target.value);
+      if (hit) selectSite(hit.id, { fly: true });
+    });
+
+    document.querySelector("#plan-site").addEventListener("change", (e) => selectSite(e.target.value, { fly: true }));
     document.querySelector("#plan-days").addEventListener("change", (e) => {
       plan.days = Number(e.target.value);
       drawPlan();
     });
-    selectSite(plan.site);
+    drawPlan();
+    showPanel(panelHint()); // empty state: nothing chosen yet
+    if (globe) globe.setView("moon", false); // frame the whole Moon in the space beside the panel
 
     // The two scenarios
     for (const id of ["a", "b"]) {
@@ -356,10 +774,7 @@ async function main() {
         slots[id].site = e.target.value;
         drawSlot(id, slots[id], analyses);
       });
-      document.querySelector(`#time-${id}`).addEventListener("input", (e) => {
-        slots[id].index = Number(e.target.value);
-        drawSlot(id, slots[id], analyses);
-      });
+      document.querySelector(`#time-${id}`).addEventListener("input", (e) => setIndex(id, Number(e.target.value)));
       drawSlot(id, slots[id], analyses);
     }
 
@@ -394,7 +809,7 @@ async function main() {
 
     async function analysePoint(lat, lon, from) {
       if (busy) {
-        globeInfo.innerHTML = `<p class="sub">Still working on the previous point, one moment…</p>`;
+        showPanel(`<p class="sub">Still working on the previous point, one moment…</p>`);
         return;
       }
       busy = true;
@@ -405,9 +820,13 @@ async function main() {
         document.querySelector("#custom-lat").value = Number(lat).toFixed(3);
         document.querySelector("#custom-lon").value = Number(lon).toFixed(3);
       }
-      if (globe) globe.markPending(Number(lat), Number(lon));
+      if (globe) {
+        globe.markPending(Number(lat), Number(lon));
+        globe.setPin(Number(lat), Number(lon));
+        globe.flyTo(Number(lat), Number(lon));
+      }
       const working = `Analysing ${where}: asking NASA JPL Horizons and building the skyline from NASA LOLA terrain…`;
-      globeInfo.innerHTML = `<h3>${where}</h3><p>${working}</p>`;
+      showPanel(`<h3>${where}</h3><p class="working"><span class="spinner" aria-hidden="true"></span>${working}</p>`);
       customStatus.className = "";
       customStatus.textContent = working;
       try {
@@ -419,6 +838,7 @@ async function main() {
             document.querySelector(sel).insertAdjacentHTML("beforeend", siteOptions([site], null));
           }
           document.querySelector("#source-files").insertAdjacentHTML("beforeend", siteSourceLine(analysis));
+          refreshSiteLists();
           if (globe) globe.addSite(site);
         }
         // Show it everywhere: the globe and its info box, the planning section, scenario A and the table.
@@ -435,7 +855,8 @@ async function main() {
       } catch (error) {
         customStatus.className = "error";
         customStatus.textContent = error.message;
-        globeInfo.innerHTML = `<h3>${where}</h3><p class="error">${error.message.replace(/</g, "&lt;")}</p>`;
+        showPanel(`<h3>${where}</h3><p class="error">${error.message.replace(/</g, "&lt;")}</p>
+          <p class="sub">The 3D Moon and every curated site still work; only new points need the backend.</p>`);
       } finally {
         if (globe) globe.markPending(null);
         customGo.disabled = false;
@@ -454,6 +875,7 @@ async function main() {
         document.querySelector(`${sel} option[value="${id}"]`)?.remove();
       }
       document.querySelector(`#source-files li[data-site="${id}"]`)?.remove();
+      refreshSiteLists();
       if (globe) globe.removeSite(id);
       const fallback = sites[0].id;
       for (const key of ["a", "b"]) {
@@ -471,6 +893,12 @@ async function main() {
       selectSite(plan.site === id ? fallback : plan.site);
       customStatus.className = "";
       customStatus.textContent = "Point removed.";
+    }
+
+    // The Sites page and the search suggestions, after a point is added or removed.
+    function refreshSiteLists() {
+      document.querySelector("#sites-list").innerHTML = sitesList(sites);
+      document.querySelector("#site-list").innerHTML = sites.map((s) => `<option value="${s.label}">`).join("");
     }
 
     globeInfo.addEventListener("click", (e) => {
