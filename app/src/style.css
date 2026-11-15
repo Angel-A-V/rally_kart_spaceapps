@@ -256,13 +256,13 @@ a { color: var(--earth); }
 }
 
 /* Bottom bar: camera views, cursor readout, legend */
-.quick-views { left: 50%; bottom: var(--gap); transform: translateX(-50%); display: flex; gap: 6px; padding: 6px;
+.quick-views { left: 50%; bottom: var(--gap); transform: translateX(-50%); max-width: calc(100vw - 2 * var(--gap)); box-sizing: border-box; overflow-x: auto; display: flex; gap: 6px; padding: 6px;
   background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-line); border-radius: var(--radius); }
-.quick-views button { min-height: 36px; padding: 0 12px; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; color: var(--text-2); }
+.quick-views button { white-space: nowrap; min-height: 36px; padding: 0 12px; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; color: var(--text-2); }
 .quick-views button:hover { color: var(--text); background: var(--surface-2); border-color: var(--glass-line); }
-.readout { left: var(--gap); bottom: var(--gap); font-size: 0.8rem; color: var(--text-2); padding: 8px 12px;
+.readout { left: var(--gap); bottom: calc(var(--gap) + 60px); font-size: 0.8rem; color: var(--text-2); padding: 8px 12px;
   background: var(--glass); border: 1px solid var(--glass-line); border-radius: 10px; min-width: 22ch; }
-.legend-mini { left: var(--gap); bottom: calc(var(--gap) + 44px); display: flex; gap: 12px; list-style: none; margin: 0; padding: 6px 10px;
+.legend-mini { left: var(--gap); bottom: calc(var(--gap) + 104px); display: flex; gap: 12px; list-style: none; margin: 0; padding: 6px 10px;
   font-size: 0.75rem; color: var(--text-2); background: var(--glass); border: 1px solid var(--glass-line); border-radius: 10px; }
 .legend-mini li { display: flex; align-items: center; gap: 5px; }
 
@@ -274,7 +274,7 @@ a { color: var(--earth); }
 .drawer button.active strong { color: var(--earth); }
 
 /* The sheet: the page for the chosen menu item */
-.sheet { position: absolute; z-index: 6; top: calc(var(--gap) + 56px); bottom: calc(var(--gap) + 60px); left: var(--gap);
+.sheet { position: absolute; z-index: 6; top: calc(var(--gap) + 56px); bottom: calc(var(--gap) + 152px); left: var(--gap);
   width: min(820px, calc(100vw - 2 * var(--gap) - 420px)); display: flex; flex-direction: column; background: var(--glass-strong); }
 #drawer:not([hidden]) ~ .sheet { left: calc(var(--gap) + 244px); width: min(820px, calc(100vw - 3 * var(--gap) - 244px - 404px)); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--glass-line); }
@@ -348,6 +348,11 @@ button.primary:hover { filter: brightness(1.1); }
 table.glance td { font-size: 0.85rem; }
 table.glance td.better { font-weight: 700; color: var(--yes); }
 table.glance thead th { text-align: left; }
+
+.quick-views .sep { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--glass-line); }
+.quick-views button[aria-pressed="true"] { color: var(--text); }
+.quick-views button[aria-pressed="false"] { color: var(--text-2); }
+#sun-time { color: var(--text-2); font-size: 0.85em; }
 
 /* Right-click menu */
 .ctx-menu { position: fixed; z-index: 20; min-width: 200px; padding: 6px; display: grid; gap: 2px; background: var(--glass-strong); }

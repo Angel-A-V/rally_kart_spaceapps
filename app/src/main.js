@@ -1,6 +1,7 @@
 import "./style.css";
 import { loadChecks, loadCrosscheck, loadCustomPoint, loadLunarNames, loadSites, loadSiteAnalysis } from "./data.js";
 import { parseNames } from "./features.js";
+import { sunDirection } from "./geo.js";
 import { atAGlance } from "./compare.js";
 import { advance, playerHtml, ticksHtml } from "./timeline.js";
 import { accuracyNote, accuracyPanel } from "./accuracy.js";
@@ -113,6 +114,9 @@ function quickViews() {
   return `
     <nav class="hud quick-views" aria-label="Camera views">
       ${views.map(([v, label]) => `<button type="button" data-view="${v}">${label}</button>`).join("")}
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" id="sun-toggle" aria-pressed="true" title="Shade the half of the Moon that is in night at the chosen time (Sun position from NASA JPL Horizons)">Day and night: <span id="sun-state">on</span> <span id="sun-time"></span></button>
+      <button type="button" id="lola-toggle" aria-pressed="false" title="Colour the Moon by height (NASA LRO LOLA laser altimeter): cool colours are low ground, warm colours are high">Elevation (LOLA): <span id="lola-state">off</span></button>
     </nav>
     <div class="hud readout" id="readout" aria-hidden="true">Move over the Moon</div>
     <ul class="hud legend-mini" aria-label="Map legend">
@@ -317,6 +321,13 @@ function sourcesPanel(analyses) {
         at the model site they raise the skyline by up to about 1.5° in some directions.</li>
         <li><strong>Moon picture:</strong> NASA LRO wide-angle camera global mosaic, loaded live from NASA Moon Trek's
         tile service. The stars behind it are decoration, not a real star map.</li>
+        <li><strong>Elevation (LOLA) layer:</strong> NASA LRO LOLA laser-altimeter heights, coloured by height with hill
+        shading (Moon Trek layer LRO_LOLA_ClrShade_Global_256ppd_v06): cool colours are low ground, warm colours are high.
+        This is the same instrument our skylines are built from.</li>
+        <li><strong>Day and night on the Moon:</strong> the dark half is where the Sun is below a flat horizon at the
+        chosen time, from the Sun's position in NASA JPL Horizons. It shows the lunar day moving across the Moon. It
+        does not draw the shadows hills cast (the photo's own small shadows are fixed); those are what each site's
+        skyline analysis works out exactly.</li>
         <li><strong>Feature names on the Moon:</strong> the official IAU names from the
         <a href="https://planetarynames.wr.usgs.gov/" target="_blank" rel="noopener">USGS Gazetteer of Planetary Nomenclature</a>
         (the same names NASA Moon Trek shows), with each feature's size deciding the zoom at which its name appears.</li>
@@ -569,6 +580,7 @@ async function main() {
         globe.setPin(site.lat_deg, site.lon_deg_east);
         if (fly) globe.flyTo(site.lat_deg, site.lon_deg_east);
       }
+      updateSun();
       drawPlan();
     }
 
@@ -645,7 +657,34 @@ async function main() {
         openPage(open.dataset.open);
       }
     });
+    // Day and night on the globe at the analysis panel's time. Any site's row gives the same Sun
+    // direction (tested), so the selected site's row is used.
+    function updateSun() {
+      const btn = document.querySelector("#sun-toggle");
+      if (!globe || !btn) return;
+      const on = btn.getAttribute("aria-pressed") === "true";
+      const site = sites.find((s) => s.id === plan.site);
+      const row = analyses[plan.site].rows[Math.min(focusState.index, analyses[plan.site].rows.length - 1)];
+      globe.setSun(on ? sunDirection(site.lat_deg, site.lon_deg_east, row.sun_az_deg, row.sun_el_deg) : null);
+      document.querySelector("#sun-state").textContent = on ? "on" : "off";
+      document.querySelector("#sun-time").textContent = on ? `· ${row.time_utc.replace(/^\d{4}-/, "")} UTC` : "";
+    }
+    document.querySelector("#sun-toggle").addEventListener("click", (e) => {
+      const b = e.currentTarget;
+      b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"));
+      updateSun();
+    });
+    updateSun();
+    document.querySelector("#lola-toggle").addEventListener("click", (e) => {
+      const b = e.currentTarget;
+      const on = b.getAttribute("aria-pressed") !== "true";
+      b.setAttribute("aria-pressed", String(on));
+      document.querySelector("#lola-state").textContent = on ? "on" : "off";
+      if (globe) globe.setLayer(on ? "lola" : "photo");
+    });
+
     function drawFocus() {
+      updateSun();
       const rows = rowsFor(analyses, plan.site);
       const row = rows[focusState.index];
       const mark = (v) => (v ? "✓ up" : "✗ blocked");

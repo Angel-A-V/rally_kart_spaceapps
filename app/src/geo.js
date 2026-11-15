@@ -34,8 +34,20 @@ export function tileGrid(zoom) {
   return { cols: 2 * 2 ** zoom, rows: 2 ** zoom };
 }
 
-export function tileUrl(zoom, row, col) {
-  return `${TILE_BASE}/${zoom}/${row}/${col}.jpg`;
+// The pictures the globe can wear. Both are NASA Moon Trek tile sets with the same layout.
+//   photo  LRO wide-angle camera mosaic (what the Moon looks like)
+//   lola   LRO LOLA laser-altimeter elevation, coloured by height with hill shading
+export const LAYERS = {
+  photo: { base: TILE_BASE, ext: "jpg", maxZoom: 7 },
+  lola: {
+    base: "https://trek.nasa.gov/tiles/Moon/EQ/LRO_LOLA_ClrShade_Global_256ppd_v06/1.0.0/default/default028mm",
+    ext: "png", maxZoom: 6,
+  },
+};
+
+export function tileUrl(zoom, row, col, layer = "photo") {
+  const l = LAYERS[layer];
+  return `${l.base}/${zoom}/${row}/${col}.${l.ext}`;
 }
 
 // A point on the camera's path from one position to another: the direction turns along the great
@@ -100,4 +112,22 @@ export function detailWindow(lat0, lon0, viewDeg, { baseZoom = 3, maxZoom = 7, m
     return { zoom, row0, rows, col0, cols, tileW, latN, latS, lonW, lonE: lonW + cols * step };
   }
   return null;
+}
+
+// Where the Sun is, as a direction in the globe's own coordinates, from what one site sees:
+// the Sun's compass direction (azimuth, clockwise from north) and height (elevation) at (lat, lon).
+// The Sun is so far away that this direction is the same for the whole Moon, so it tells which
+// half is in daylight. Returns a unit vector [x, y, z] (same axes as latLonToXyz).
+export function sunDirection(latDeg, lonDeg, azDeg, elDeg) {
+  const lat = latDeg * RAD;
+  const lon = lonDeg * RAD;
+  const up = [Math.cos(lat) * Math.cos(lon), Math.sin(lat), -Math.cos(lat) * Math.sin(lon)];
+  const north = [-Math.sin(lat) * Math.cos(lon), Math.cos(lat), Math.sin(lat) * Math.sin(lon)];
+  const east = [-Math.sin(lon), 0, -Math.cos(lon)];
+  const az = azDeg * RAD;
+  const el = elDeg * RAD;
+  const e = Math.cos(el) * Math.sin(az);
+  const n = Math.cos(el) * Math.cos(az);
+  const u = Math.sin(el);
+  return [0, 1, 2].map((i) => e * east[i] + n * north[i] + u * up[i]);
 }
