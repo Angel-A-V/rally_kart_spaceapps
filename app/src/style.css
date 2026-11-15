@@ -354,6 +354,18 @@ table.glance thead th { text-align: left; }
 .quick-views button[aria-pressed="false"] { color: var(--text-2); }
 #sun-time { color: var(--text-2); font-size: 0.85em; }
 
+/* The one clock, in the top bar */
+.clock { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; max-width: 620px; margin: 0 auto; padding: 4px 12px; height: 44px; box-sizing: border-box;
+  background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-line); border-radius: var(--radius); }
+.clock .player { margin: 0; flex-wrap: nowrap; }
+.clock .player .loop { display: none; }
+.clock input[type="range"] { flex: 1; min-width: 60px; }
+.clock output { font-size: 0.85rem; color: var(--text-2); white-space: nowrap; }
+.search { margin-left: 0; }
+.quick-views button:disabled { opacity: 0.4; cursor: default; }
+@media (max-width: 900px) { .clock .player select, .clock [data-act="back"], .clock [data-act="fwd"] { display: none; } }
+@media (max-width: 760px) { .clock output { display: none; } }
+
 /* Right-click menu */
 .ctx-menu { position: fixed; z-index: 20; min-width: 200px; padding: 6px; display: grid; gap: 2px; background: var(--glass-strong); }
 .ctx-menu .ctx-where { margin: 4px 10px 6px; font-size: 0.78rem; color: var(--text-2); }

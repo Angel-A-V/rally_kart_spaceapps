@@ -198,15 +198,22 @@ export function createGlobe(container, sites, handlers = {}) {
     // it when its site is on the far side.
     const dot = new THREE.Mesh(
       new THREE.CircleGeometry(MARKER_RADIUS * 0.5, 24),
-      new THREE.MeshBasicMaterial({ color: colorFor(site), depthTest: false })
+      new THREE.MeshBasicMaterial({ color: colorFor(site), depthTest: false, transparent: true }) // transparent so it sorts after the backing disc
     );
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(MARKER_RADIUS * 0.8, MARKER_RADIUS, 32),
       new THREE.MeshBasicMaterial({ color: colorFor(site), transparent: true, opacity: 0.75, depthTest: false })
     );
-    dot.renderOrder = 10;
+    // A dark disc behind the dot and ring, so they read on any picture (photo or the LOLA colours).
+    const back = new THREE.Mesh(
+      new THREE.CircleGeometry(MARKER_RADIUS * 1.25, 32),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6, depthTest: false })
+    );
+    back.renderOrder = 9;
+    dot.renderOrder = 11;
     ring.renderOrder = 10;
     dot.add(ring);
+    dot.add(back);
     dot.position.copy(position);
     scene.add(dot);
     const hit = new THREE.Mesh(new THREE.SphereGeometry(MARKER_RADIUS * 2.2, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
@@ -267,14 +274,62 @@ export function createGlobe(container, sites, handlers = {}) {
     new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
-      uniforms: { sunDir: { value: new THREE.Vector3(1, 0, 0) } },
+      uniforms: { sunDir: { value: new THREE.Vector3(1, 0, 0) }, heightMap: { value: null }, shadows: { value: 0 } },
       vertexShader: "varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-      // Soft edge about 6 degrees wide: the Sun is a disc and the ground is rough, so day fades into night.
-      fragmentShader: "uniform vec3 sunDir; varying vec3 vDir; void main() { float lit = smoothstep(-0.04, 0.07, dot(normalize(vDir), sunDir)); gl_FragColor = vec4(0.0, 0.0, 0.0, (1.0 - lit) * 0.62); }",
+      // Night: the Sun is below a smooth horizon. Terrain shadows (when the LOLA height map is loaded):
+      // from each point, step towards the Sun (about 2 km to 300 km away) and see whether the ground
+      // along the way rises above the line of sight. The Sun's disc gives the shadow a soft edge.
+      fragmentShader: `
+        uniform vec3 sunDir; uniform sampler2D heightMap; uniform float shadows; varying vec3 vDir;
+        float heightAt(vec3 d) {
+          vec2 uv = vec2(atan(-d.z, d.x) / 6.2831853 + 0.5, asin(clamp(d.y, -1.0, 1.0)) / 3.14159265 + 0.5);
+          vec4 t = texture2D(heightMap, uv);
+          return ((t.r * 255.0 * 256.0 + t.g * 255.0) * 0.5 - 12000.0) / 1737400.0;  // metres -> Moon radii
+        }
+        void main() {
+          vec3 d = normalize(vDir);
+          float s = dot(d, sunDir);
+          float lit = smoothstep(-0.04, 0.07, s);
+          if (shadows > 0.5) {
+            lit = smoothstep(-0.02, 0.02, s);
+            if (s > -0.03) {
+              vec3 p = d * (1.0 + heightAt(d) + 0.00003);
+              float margin = 1.0;
+              float t = 0.0012;
+              for (int i = 0; i < 40; i++) {
+                vec3 q = p + sunDir * t;
+                float r = length(q);
+                margin = min(margin, (r - 1.0 - heightAt(q / r)) / t);
+                t *= 1.14;
+              }
+              lit = min(lit, smoothstep(-0.006, 0.004, margin));
+            }
+          }
+          gl_FragColor = vec4(0.0, 0.0, 0.0, (1.0 - lit) * 0.62);
+        }`,
     })
   );
   night.visible = false;
   scene.add(night);
+  // Terrain shadows need the LOLA height picture (8.6 MB): loaded the first time they are switched on.
+  let heightRequested = false;
+  let shadowsWanted = false;
+  const setShadows = (on) => {
+    shadowsWanted = on;
+    const u = night.material.uniforms;
+    if (on && !heightRequested) {
+      heightRequested = true;
+      new THREE.TextureLoader().load("/data/moon_height.png", (tex) => {
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.generateMipmaps = false;
+        tex.wrapS = THREE.RepeatWrapping;
+        u.heightMap.value = tex;
+        u.shadows.value = shadowsWanted ? 1 : 0;
+      });
+    }
+    u.shadows.value = on && u.heightMap.value ? 1 : 0;
+  };
   const setSun = (dir) => {
     night.visible = Boolean(dir);
     if (dir) night.material.uniforms.sunDir.value.set(...dir).normalize();
@@ -529,8 +584,10 @@ export function createGlobe(container, sites, handlers = {}) {
     if (i < 0) return;
     const m = markers[i];
     scene.remove(m.dot, m.hit);
-    m.dot.children[0].geometry.dispose();
-    m.dot.children[0].material.dispose();
+    for (const child of m.dot.children) {
+      child.geometry.dispose();
+      child.material.dispose();
+    }
     m.dot.geometry.dispose();
     m.dot.material.dispose();
     m.hit.geometry.dispose();
@@ -541,5 +598,5 @@ export function createGlobe(container, sites, handlers = {}) {
     if (selectedId === siteId) selectedId = null;
   };
 
-  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setLayer, addSite, removeSite, markPending };
+  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setShadows, setLayer, addSite, removeSite, markPending };
 }
