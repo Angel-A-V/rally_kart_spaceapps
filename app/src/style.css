@@ -316,6 +316,11 @@ button.primary:hover { filter: brightness(1.1); }
 .spinner { flex: none; width: 16px; height: 16px; margin-top: 2px; border: 2px solid var(--glass-line); border-top-color: var(--earth); border-radius: 50%; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Official feature names on the globe (centred on the feature, quieter than site labels) */
+.feature-label { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
+  font-size: 11px; color: rgba(232, 234, 237, 0.72); text-shadow: 0 0 3px #000, 0 0 2px #000; }
+.feature-label.big { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+
 /* Right-click menu */
 .ctx-menu { position: fixed; z-index: 20; min-width: 200px; padding: 6px; display: grid; gap: 2px; background: var(--glass-strong); }
 .ctx-menu .ctx-where { margin: 4px 10px 6px; font-family: var(--mono); font-size: 0.78rem; color: var(--text-2); }

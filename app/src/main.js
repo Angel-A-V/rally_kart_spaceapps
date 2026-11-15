@@ -1,5 +1,6 @@
 import "./style.css";
-import { loadChecks, loadCrosscheck, loadCustomPoint, loadSites, loadSiteAnalysis } from "./data.js";
+import { loadChecks, loadCrosscheck, loadCustomPoint, loadLunarNames, loadSites, loadSiteAnalysis } from "./data.js";
+import { parseNames } from "./features.js";
 import { accuracyNote, accuracyPanel } from "./accuracy.js";
 import { skyDiagram } from "./skyDiagram.js";
 import { numbersPanel } from "./numbersPanel.js";
@@ -308,6 +309,9 @@ function sourcesPanel(analyses) {
         at the model site they raise the skyline by up to about 1.5° in some directions.</li>
         <li><strong>Moon picture:</strong> NASA LRO wide-angle camera global mosaic, loaded live from NASA Moon Trek's
         tile service. The stars behind it are decoration, not a real star map.</li>
+        <li><strong>Feature names on the Moon:</strong> the official IAU names from the
+        <a href="https://planetarynames.wr.usgs.gov/" target="_blank" rel="noopener">USGS Gazetteer of Planetary Nomenclature</a>
+        (the same names NASA Moon Trek shows), with each feature's size deciding the zoom at which its name appears.</li>
         <li><strong>Visible</strong> means the body's angle above a flat horizon is greater than the skyline in its direction.
         <strong>Margin</strong> is that difference.</li>
         <li><strong>Windows</strong> are unbroken stretches of visible samples in the one-year data (6-hour steps), so their
@@ -448,6 +452,7 @@ async function main() {
       for (const b of document.querySelectorAll("[data-view]")) {
         b.addEventListener("click", () => globe.setView(b.dataset.view));
       }
+      loadLunarNames().then((names) => globe.setFeatures(parseNames(names))); // after the Moon is up
     } catch (error) {
       document.querySelector("#globe").innerHTML =
         `<p class="error stage-error">The 3D Moon could not start (${String(error.message).replace(/</g, "&lt;")}).

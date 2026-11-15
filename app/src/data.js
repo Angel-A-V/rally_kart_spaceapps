@@ -33,6 +33,11 @@ export function loadChecks() {
   return getJson("checks.json").catch(() => null);
 }
 
+// Official lunar feature names for the globe (scripts/fetch_lunar_names.py). Optional.
+export function loadLunarNames() {
+  return getJson("lunar_names.json").catch(() => null);
+}
+
 // Any point on the Moon, analysed live by the Python backend (app/python/server/app.py).
 // Returns { site, analysis }: `site` has the shape of one sites.json entry and `analysis`
 // the shape of a <site>_analysis.json file, so the rest of the page treats it like any site.

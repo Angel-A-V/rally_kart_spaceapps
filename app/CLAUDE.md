@@ -12,7 +12,8 @@ breaking anyone else's work.
 - Phases (in order of demo value):
   1. Full-screen Moon + ☰ menu + floating panels. **done**
   2. Fly-to animation, pulsing pin, slide-in analysis panel, right-click "Analyse this point". **done**
-  3. IAU feature names that appear as you zoom (Moon Trek style). *todo* (site labels already declutter)
+  3. IAU feature names that appear as you zoom (Moon Trek style). **done** (`src/features.js`,
+     `public/data/lunar_names.json` from `app/python/scripts/fetch_lunar_names.py`)
   4. Compare mode: "A vs B at a glance", "Same time" box, play/pause timeline (Gustavo's wireframe v2,
      `docs/handoffs/gustavo-wireframe-v2.md`). *todo*
   5. Polish: lighting/terminator toggle, phone layout, motion. *todo*

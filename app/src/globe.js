@@ -11,6 +11,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { flightPoint, latLonToXyz, tileGrid, tileUrl, xyzToLatLon } from "./geo.js";
+import { isOnNearHalf, minDiameterKm } from "./features.js";
 
 const TILE_PX = 256;
 const SURFACE_ZOOM = 3;      // 16 x 8 tiles = a 4096 x 2048 picture
@@ -18,6 +19,7 @@ const PREVIEW_ZOOM = 1;      // 4 x 2 tiles, shown first while the sharper ones 
 const MARKER_RADIUS = 0.004; // on a Moon of radius 1 (about 7 km)
 const COLORS = { named: 0x3987e5, model: 0xeb6834, custom: 0x2fbf71, pending: 0xffd23f, selected: 0xffffff };
 const FLY_MS = 1400;          // length of a fly-to
+const MAX_FEATURE_LABELS = 60; // official feature names on screen at once
 const SITE_DISTANCE = 1.55;   // camera distance from the Moon's centre after flying to a site (radius 1)
 const LONG_PRESS_MS = 550;    // touch: hold this long for the context menu
 // Which label wins when two would overlap.
@@ -123,6 +125,20 @@ export function createGlobe(container, sites, handlers = {}) {
     markers.push({ site, dot, hit, label, position });
   };
   for (const site of sites) addSite(site);
+
+  // Official feature names (IAU), shown by size and zoom. A small pool of label elements is reused.
+  let features = [];
+  const featureLabels = [];
+  const setFeatures = (list) => (features = list || []);
+  const featureLabel = (i) => {
+    if (!featureLabels[i]) {
+      const el = document.createElement("span");
+      el.className = "feature-label";
+      labelLayer.appendChild(el);
+      featureLabels[i] = el;
+    }
+    return featureLabels[i];
+  };
 
   // A yellow dot where you clicked, shown while the backend works out that point.
   const pendingDot = new THREE.Mesh(
@@ -339,6 +355,31 @@ export function createGlobe(container, sites, handlers = {}) {
         m.label.style.top = `${y}px`;
       }
     }
+    // Feature names: biggest first, only on the near half and on screen, never over another label.
+    const camPos = camera.position.toArray();
+    const minD = minDiameterKm(camera.position.length());
+    let used = 0;
+    for (const f of features) {
+      if (used >= MAX_FEATURE_LABELS || f.d < minD) break; // the list is sorted biggest first
+      if (!isOnNearHalf(f.pos, camPos)) continue;
+      projected.set(...f.pos).project(camera);
+      if (Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1) continue;
+      const x = ((projected.x + 1) / 2) * width();
+      const y = ((1 - projected.y) / 2) * height();
+      const half = (f.name.length * (f.big ? 9 : 6.5)) / 2 + 4;
+      const box = { x0: x - half, x1: x + half, y0: y - 9, y1: y + 9 };
+      if (placed.some((p) => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) continue;
+      placed.push(box);
+      const el = featureLabel(used++);
+      if (el.textContent !== f.name) {
+        el.textContent = f.name;
+        el.classList.toggle("big", f.big);
+      }
+      el.style.display = "";
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    }
+    for (let i = used; i < featureLabels.length; i++) featureLabels[i].style.display = "none";
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
   };
@@ -360,5 +401,5 @@ export function createGlobe(container, sites, handlers = {}) {
     if (selectedId === siteId) selectedId = null;
   };
 
-  return { select, flyTo, setView, setPin, setInset, addSite, removeSite, markPending };
+  return { select, flyTo, setView, setPin, setInset, setFeatures, addSite, removeSite, markPending };
 }
