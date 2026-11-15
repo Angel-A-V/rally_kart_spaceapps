@@ -26,8 +26,8 @@ breaking anyone else's work.
   are above the local skyline, and how good the site is over a year.
 - **Audience:** hackathon judges in an 8-minute live demo, and curious public users. First screen must
   show the Moon and make clicking it obvious.
-- **Tone:** calm mission control. Near-black space, cool neutral glass panels, monospaced numbers for
-  readouts. Technical, not flashy.
+- **Tone:** calm mission control. Near-black space, cool neutral glass panels, one typeface (San
+  Francisco). Technical, not flashy.
 - **Memorable detail:** the descent. Clicking a site or point flies the camera down to it, a pin pulses,
   and the analysis panel slides in with that spot's live horizon strip. A small readout always shows the
   latitude/longitude under the cursor.
@@ -45,8 +45,9 @@ breaking anyone else's work.
     selected white (see `COLORS` in `src/globe.js`; keep the legend in sync).
 - **Glass panels:** `--glass` background + `backdrop-filter: blur()` + 1px `--glass-line` border,
   rounded 12 px. No cards inside cards. No gradients, glows or decorative blobs.
-- **Type:** system UI font for text; `--mono` for numbers, coordinates and readouts. Headings small and
-  quiet; let the Moon be the hero.
+- **Type:** San Francisco via `--font` (`-apple-system` first; other systems fall back to their UI font).
+  No monospace, no tracked uppercase; numbers use `tabular-nums`. Headings small and quiet; the Moon is
+  the hero. Angel's feedback 2026-11-15: mono readouts and letter-spaced caps "look straight AI".
 - **Motion:** only to explain a change of state (fly-to, panel slide, pin pulse). Respect
   `prefers-reduced-motion`: jump instead of flying, no pulsing.
 - **Copy:** plain English for non-experts; explain jargon once (glossary). Never describe a feature in the
@@ -101,7 +102,8 @@ const globe = createGlobe(container, sites, {
 });
 globe.select(siteId)           // highlight a marker (white, bigger)
 globe.flyTo(lat, lon, dist?)   // eased camera flight (instant with reduced motion)
-globe.setView("near" | "far" | "pole" | "north" | "moon")
+globe.setView("near" | "far" | "pole" | "north" | "moon")   // poles are centred on the pole; whole-Moon
+                               // views pick the distance that fits the free space (fitDistance)
 globe.addSite(site) / removeSite(id)
 globe.markPending(lat, lon) / markPending(null)   // yellow dot while the backend works
 globe.setPin(lat, lon) / setPin(null)             // pulsing ring on the selected site or clicked point

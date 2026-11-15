@@ -55,7 +55,7 @@ def keep(row):
 
 
 def compact(rows):
-    out = [[" ".join((r["clean_name"] or r["name"]).split()), round(float(r["center_lat"]), 3), round(float(r["center_lon"]) % 360, 3),
+    out = [[" ".join((r["name"] or r["clean_name"]).split()), round(float(r["center_lat"]), 3), round(float(r["center_lon"]) % 360, 3),
             round(float(r["diameter"]), 1), r["code"]] for r in rows if keep(r)]
     return sorted(out, key=lambda f: -f[3])
 

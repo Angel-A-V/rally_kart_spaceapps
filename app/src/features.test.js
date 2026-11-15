@@ -25,6 +25,8 @@ test("isOnNearHalf: a point is visible only on the side of the Moon facing the c
   assert.equal(isOnNearHalf([0, 0, 1], [0, 0, 3]), true);
   assert.equal(isOnNearHalf([0, 0, -1], [0, 0, 3]), false);
   assert.equal(isOnNearHalf([1, 0, 0], [0, 0, 3]), false); // on the limb: hidden (label would sit off the edge)
+  const nearEdge = [Math.cos(0.42), 0, Math.sin(0.42)];     // just inside the visible edge from distance 3
+  assert.equal(isOnNearHalf(nearEdge, [0, 0, 3]), false);
 });
 
 test("the real names file loads and includes the model site's crater", () => {

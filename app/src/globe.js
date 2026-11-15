@@ -174,11 +174,12 @@ export function createGlobe(container, sites, handlers = {}) {
     pin.visible = true;
   };
 
+  let inset = { right: 0, bottom: 0 }; // space covered by panels (see setInset)
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enablePan = false;
   controls.enableDamping = true;
   controls.minDistance = 1.06;
-  controls.maxDistance = 6;
+  controls.maxDistance = 8;
 
   // Camera flights. While flying, the mouse does not steer; the frame loop moves the camera.
   let flight = null;
@@ -194,15 +195,26 @@ export function createGlobe(container, sites, handlers = {}) {
   };
   const flyTo = (lat, lon, distance = SITE_DISTANCE) => flyToXyz(latLonToXyz(lat, lon, distance));
 
+  // Distance at which the whole Moon fits in the free part of the window (beside or above any panel),
+  // with room for the bars: the Moon's disc takes about 70 % of the smaller free dimension.
+  const fitDistance = () => {
+    const w = width();
+    const h = height();
+    const halfV = THREE.MathUtils.degToRad(camera.fov / 2);
+    const freeV = Math.atan(Math.tan(halfV) * Math.max(0.3, (h - inset.bottom) / h));
+    const freeH = Math.atan(Math.tan(halfV) * (Math.max(0.3 * w, w - inset.right) / h));
+    return Math.min(controls.maxDistance, 1 / Math.sin(Math.min(freeV, freeH) * 0.7));
+  };
+  const POLE_DISTANCE = 1.9; // shows about 20 degrees of latitude around the pole
   const views = {
-    near: [0, 0, 3.4],      // the side that always faces Earth
-    far: [0, 180, 3.4],
-    pole: [-82, 20, 1.5],   // just above the south pole
-    north: [82, 20, 1.5],
-    moon: [-25, 20, 3.4],   // tilted towards the south pole, where most sites are
+    near: () => [0, 0, fitDistance()],      // the side that always faces Earth
+    far: () => [0, 180, fitDistance()],
+    pole: () => [-89.9, 0, POLE_DISTANCE],  // straight above the south pole (0.1 deg off keeps "up" defined)
+    north: () => [89.9, 0, POLE_DISTANCE],
+    moon: () => [-20, 20, fitDistance()],   // tilted a little towards the south pole, where most sites are
   };
   const setView = (name, animate = true) => {
-    const [lat, lon, d] = views[name];
+    const [lat, lon, d] = views[name]();
     if (animate) return flyTo(lat, lon, d);
     camera.position.set(...latLonToXyz(lat, lon, d));
     controls.update();
@@ -290,7 +302,6 @@ export function createGlobe(container, sites, handlers = {}) {
   };
 
   // Panels over the canvas: shift the view so the Moon centres in the free space beside them.
-  let inset = { right: 0, bottom: 0 };
   const applyInset = () => {
     const w = width();
     const h = height();

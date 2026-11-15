@@ -28,5 +28,5 @@ export function parseNames(data) {
 export function isOnNearHalf(pos, cameraPos) {
   const r = Math.hypot(...cameraPos);
   const dot = (pos[0] * cameraPos[0] + pos[1] * cameraPos[1] + pos[2] * cameraPos[2]) / r;
-  return dot > 1 / r + 0.03;
+  return dot > 1 / r + 0.14; // names near the edge are squashed and spill past the Moon: leave them out
 }
