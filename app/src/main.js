@@ -17,6 +17,7 @@ import { siteInfo } from "./siteInfo.js";
 import { infoTip } from "./ui/infoTip.js";
 import { icon } from "./ui/icons.js";
 import { makeWindow } from "./ui/windows.js";
+import { shootingStar, startAmbientSky, setMoonCircle } from "./ui/fx.js";
 import { statsPanel } from "./statsPanel.js";
 import { tableView } from "./tableView.js";
 import { DEFAULT_SETTINGS, SUN_RULES, applySettings, compareVerdict, settingsSentence } from "./settings.js";
@@ -531,6 +532,7 @@ async function main() {
       for (const b of document.querySelectorAll("[data-view]")) {
         b.addEventListener("click", () => globe.setView(b.dataset.view));
       }
+      setMoonCircle(globe.moonCircle); // shooting stars pass behind the Moon, never in front
       loadLunarNames().then((names) => globe.setFeatures(parseNames(names))); // after the Moon is up
     } catch (error) {
       document.querySelector("#globe").innerHTML =
@@ -660,6 +662,7 @@ async function main() {
     function selectSite(id, { fly = false } = {}) {
       const site = sites.find((s) => s.id === id);
       if (!site) return;
+      if (plan.site !== id || panelEl.classList.contains("closed")) shootingStar();
       plan.site = id;
       document.querySelector("#plan-site").value = id;
       focusState.index = Math.min(focusState.index, analyses[id].rows.length - 1);
@@ -928,6 +931,7 @@ async function main() {
     });
     drawPlan();
     showPanel(panelHint()); // empty state: nothing chosen yet
+    startAmbientSky();      // shooting stars while the page sits idle, more and brighter the longer it rests
     if (globe) globe.setView("moon", false); // frame the whole Moon in the space beside the panel
 
     // The two scenarios

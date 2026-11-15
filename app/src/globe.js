@@ -788,5 +788,25 @@ export function createGlobe(container, sites, handlers = {}) {
     if (selectedId === siteId) selectedId = null;
   };
 
-  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setEarth, setShadows, setLayer, addSite, removeSite, markPending, setOverlay };
+  // Where the Moon's disc is on screen, in pixels: { x, y, r }. Used to keep shooting stars behind it.
+  const moonCircle = () => {
+    const d = camera.position.length();
+    const dir = camera.position.clone().normalize();
+    const up = camera.up.clone().sub(dir.clone().multiplyScalar(camera.up.dot(dir)));
+    if (up.lengthSq() < 1e-6) up.set(1, 0, 0).sub(dir.clone().multiplyScalar(dir.x));
+    up.normalize();
+    // The visible edge of a sphere of radius 1 seen from distance d is a circle of radius sqrt(1 - 1/d²)
+    // centred 1/d towards the camera.
+    const c = dir.clone().multiplyScalar(1 / d);
+    const edge = c.clone().add(up.multiplyScalar(Math.sqrt(Math.max(0, 1 - 1 / (d * d)))));
+    const toPx = (v) => {
+      const p = v.clone().project(camera);
+      return [((p.x + 1) / 2) * width(), ((1 - p.y) / 2) * height()];
+    };
+    const [x, y] = toPx(c);
+    const [ex, ey] = toPx(edge);
+    return { x, y, r: Math.hypot(ex - x, ey - y) };
+  };
+
+  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setEarth, setShadows, setLayer, addSite, removeSite, markPending, moonCircle, setOverlay };
 }

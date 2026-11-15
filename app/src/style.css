@@ -523,3 +523,43 @@ body.ui-hidden .ui-toggle:hover, body.ui-hidden .ui-toggle:focus-visible { opaci
 
 /* desktop: the analysis panel stops above the Just the Moon button, which sits one row above the bottom bar */
 @media (min-width: 761px) { .panel { bottom: calc(var(--gap) + 110px); } }
+
+/* ---- Sky effects (src/ui/fx.js): shooting stars and a drifting light. Above the Moon, below the panels,
+   never catch clicks. The longer the page sits idle, the bigger and brighter they get (fx.js sets the
+   --thick, --head, --glow, --peak, --travel, --dur, --size, --op variables; defaults are the calm look). ---- */
+.fx-layer {
+  position: fixed; inset: 0; z-index: 4; pointer-events: none; overflow: hidden;
+  /* stay BEHIND the Moon: a Moon-shaped hole, moved every frame from the globe (--mx, --my, --mr) */
+  --mx: -9999px; --my: -9999px; --mr: 0px;
+  -webkit-mask-image: radial-gradient(circle at var(--mx) var(--my), transparent var(--mr), #000 calc(var(--mr) + 1px));
+  mask-image: radial-gradient(circle at var(--mx) var(--my), transparent var(--mr), #000 calc(var(--mr) + 1px));
+}
+.shooting-star {
+  position: absolute; left: var(--x); top: var(--y); width: var(--len); height: var(--thick, 1.5px); border-radius: 2px;
+  transform-origin: 0 50%; transform: rotate(var(--angle));
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(170, 200, 255, 0.3) 40%, transparent);
+  animation: shoot var(--dur, 0.9s) cubic-bezier(0.3, 0.6, 0.4, 1) forwards;
+}
+.shooting-star::before {   /* the bright head */
+  content: ""; position: absolute; left: calc(var(--head, 4.5px) / -3); top: 50%; translate: 0 -50%;
+  width: var(--head, 4.5px); height: var(--head, 4.5px); border-radius: 50%;
+  background: #fff; box-shadow: 0 0 var(--glow, 6px) 1px rgba(190, 215, 255, 0.75);
+}
+@keyframes shoot {
+  0%   { opacity: 0; translate: 0 0; }
+  12%  { opacity: var(--peak, 0.85); }
+  100% { opacity: 0; translate: calc(cos(var(--angle)) * var(--travel, 420px)) calc(sin(var(--angle)) * var(--travel, 420px)); }
+}
+.drifter {
+  position: absolute; top: var(--y0); left: 0; width: var(--size, 2px); height: var(--size, 2px); border-radius: 50%;
+  background: #fff; box-shadow: 0 0 3px 1px rgba(255, 255, 255, 0.35); opacity: 0;
+  animation: drift 45s linear forwards, glint 6s ease-in-out infinite;
+}
+@keyframes drift {
+  0%   { opacity: 0; transform: translate(calc(50vw - var(--dir) * 54vw), 0); }
+  10%  { opacity: var(--op, 0.75); }
+  90%  { opacity: var(--op, 0.75); }
+  100% { opacity: 0; transform: translate(calc(50vw + var(--dir) * 54vw), var(--dy)); }
+}
+@keyframes glint { 50% { filter: brightness(1.8); } }
+@media (prefers-reduced-motion: reduce) { .fx-layer { display: none; } }
