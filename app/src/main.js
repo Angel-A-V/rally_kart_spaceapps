@@ -14,6 +14,9 @@ import { skyDiagram } from "./skyDiagram.js";
 import { numbersPanel } from "./numbersPanel.js";
 import { planPanel } from "./planPanel.js";
 import { siteInfo } from "./siteInfo.js";
+import { infoTip } from "./ui/infoTip.js";
+import { icon } from "./ui/icons.js";
+import { shootingStar, startAmbientSky, setMoonCircle } from "./ui/fx.js";
 import { statsPanel } from "./statsPanel.js";
 import { tableView } from "./tableView.js";
 import { DEFAULT_SETTINGS, SUN_RULES, applySettings, compareVerdict, settingsSentence } from "./settings.js";
@@ -103,8 +106,18 @@ function hudTop(sites, last) {
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
       <div class="brand">
+        <svg class="emblem" viewBox="0 0 40 40" aria-hidden="true">
+          <circle class="em-ring" cx="20" cy="20" r="18.5"/>
+          <circle class="em-moon" cx="20" cy="22" r="9"/>
+          <path class="em-shade" d="M20 13a9 9 0 0 1 0 18a6.5 9 0 0 0 0-18z"/>
+          <ellipse class="em-orbit" cx="20" cy="22" rx="15" ry="5" transform="rotate(-18 20 22)"/>
+          <circle class="em-earth" cx="33.5" cy="15.5" r="2.6"/>
+          <circle class="em-sun" cx="7" cy="27.5" r="2"/>
+        </svg>
+        <div>
         <h1>Lunar Landing Site Navigator</h1>
         <p>Choosing where to land at the Moon's south pole · NASA data</p>
+        </div>
       </div>
       <div class="clock" aria-label="Time (one clock for the whole page)">
         ${playerHtml("clock")}
@@ -119,15 +132,25 @@ function hudTop(sites, last) {
     </header>`;
 }
 
+// The bottom bar's sliding highlight follows the chosen camera view.
+function moveGlider() {
+  const g = document.querySelector(".qv-glider");
+  const b = document.querySelector('[data-view][aria-pressed="true"]');
+  if (!g || !b) return;
+  g.style.width = `${b.offsetWidth}px`;
+  g.style.transform = `translateX(${b.offsetLeft}px)`;
+}
+
 function quickViews() {
   const views = [["near", "Near side"], ["far", "Far side"], ["pole", "South pole"], ["north", "North pole"], ["moon", "Whole Moon"]];
   return `
     <nav class="hud quick-views" aria-label="Camera views">
-      ${views.map(([v, label]) => `<button type="button" data-view="${v}">${label}</button>`).join("")}
+      <span class="qv-glider" aria-hidden="true"></span>
+      ${views.map(([v, label]) => `<button type="button" data-view="${v}" aria-pressed="${v === "moon"}">${icon(v)}<span>${label}</span></button>`).join("")}
       <span class="sep" aria-hidden="true"></span>
-      <button type="button" id="sun-toggle" aria-pressed="true" title="Shade the half of the Moon that is in night at the chosen time (Sun position from NASA JPL Horizons)">Day and night: <span id="sun-state">on</span> </button>
-      <button type="button" id="shadow-toggle" aria-pressed="true" title="Shadows cast by hills and crater walls, worked out from NASA LOLA heights and the real Sun direction (about 4 km detail)">Terrain shadows: <span id="shadow-state">on</span></button>
-      <button type="button" id="lola-toggle" aria-pressed="false" title="Colour the Moon by height (NASA LRO LOLA laser altimeter): cool colours are low ground, warm colours are high">Elevation (LOLA): <span id="lola-state">off</span></button>
+      <button type="button" id="sun-toggle" aria-pressed="true" title="Shade the half of the Moon that is in night at the chosen time (Sun position from NASA JPL Horizons)">${icon("daynight")}Day and night: <span id="sun-state">on</span> </button>
+      <button type="button" id="shadow-toggle" aria-pressed="true" title="Shadows cast by hills and crater walls, worked out from NASA LOLA heights and the real Sun direction (about 4 km detail)">${icon("shadows")}Terrain shadows: <span id="shadow-state">on</span></button>
+      <button type="button" id="lola-toggle" aria-pressed="false" title="Colour the Moon by height (NASA LRO LOLA laser altimeter): cool colours are low ground, warm colours are high">${icon("lola")}Elevation (LOLA): <span id="lola-state">off</span></button>
     </nav>
     <div class="hud readout" id="readout" aria-hidden="true">Move over the Moon</div>
     <ul class="hud legend-mini" aria-label="Map legend">
@@ -194,7 +217,13 @@ function panel() {
 // The empty state of the analysis panel.
 function panelHint() {
   return `
+    <p class="kicker">Mission briefing</p>
     <h3>Where should we land at the south pole?</h3>
+    <ul class="needs">
+      <li class="sun">${icon("sun")}<strong>Sunlight</strong><span>for solar power</span></li>
+      <li class="earth">${icon("earth")}<strong>Earth in view</strong><span>to radio home</span></li>
+      <li class="hills">${icon("hills")}<strong>The hills</strong><span>decide both</span></li>
+    </ul>
     <p>The Moon's south pole has ridges that stay in sunlight most of the year, right beside craters that never
     see the Sun and may hold water ice. A lander needs the <span class="sun">Sun</span> for power and a clear line
     to <span class="earth">Earth</span> for radio, and the hills decide both.</p>
@@ -214,17 +243,32 @@ function pointCard(lat, lon) {
 }
 
 // The sky at one moment for the selected site, with its own time slider (inside the analysis panel).
+const SKY_TIP = infoTip("How to read this picture", `
+  <p>Imagine standing at the landing spot and turning a full circle. This strip is that view, unrolled.</p>
+  <ul>
+    <li><strong>Left to right</strong> is the direction you face: north, east, south, west, and back to north.</li>
+    <li><strong>Up</strong> is how high something is in the sky.</li>
+    <li>The <strong>gray shape</strong> is the hills and crater walls around you.</li>
+    <li>A <strong>filled</strong> Sun or Earth is above the hills, so you can see it. A <strong>hollow ring</strong> means it is hidden behind them.</li>
+  </ul>
+  <p>Drag the time slider or press play to watch the Sun circle the sky. Near the pole it never climbs high, so the hills decide everything.</p>`,
+  "this picture");
+
+// "Right now" status pills under the sky picture: colour plus a word and a mark, never colour alone.
+function nowLine(row) {
+  const pill = (cls, name, up, upText, downText) =>
+    `<span class="now-pill ${cls} ${up ? "up" : "down"}"><span class="dot"></span>${name}: ${up ? `✓ ${upText}` : `✗ ${downText}`}</span>`;
+  return `<p class="focus-now">${pill("sun", "Sun", row.sun_visible, "power on", "no sunlight")}${pill("earth", "Earth", row.earth_visible, "radio link", "no direct link")}</p>`;
+}
+
 function focusSky(analysis, rows, index) {
   const row = rows[index];
-  const mark = (v) => (v ? "✓ up" : "✗ blocked");
   return `
-    <h4>The sky here <output id="focus-out">${row.time_utc} UTC</output></h4>
+    <h4><span>The sky from this spot ${SKY_TIP}</span><output id="focus-out">${row.time_utc} UTC</output></h4>
     <input type="range" id="focus-time" min="0" max="${rows.length - 1}" value="${index}" aria-label="Time">
     <div data-ticks="focus">${ticksHtml(rows)}</div>
     ${playerHtml("focus")}
-    <div id="focus-view">${skyDiagram(analysis.skyline_deg, row)}
-      <p class="focus-now"><span class="sun">Sun ${mark(row.sun_visible)}</span> · <span class="earth">Earth ${mark(row.earth_visible)}</span></p>
-    </div>`;
+    <div id="focus-view">${skyDiagram(analysis.skyline_deg, row)}${nowLine(row)}</div>`;
 }
 
 function panelActions(id) {
@@ -497,8 +541,18 @@ async function main() {
         },
       });
       for (const b of document.querySelectorAll("[data-view]")) {
-        b.addEventListener("click", () => globe.setView(b.dataset.view));
+        b.addEventListener("click", () => {
+          globe.setView(b.dataset.view);
+          for (const o of document.querySelectorAll("[data-view]")) o.setAttribute("aria-pressed", String(o === b));
+          moveGlider();
+          b.classList.remove("spin");
+          void b.offsetWidth; // restart the little icon spin
+          b.classList.add("spin");
+        });
       }
+      requestAnimationFrame(moveGlider);
+      addEventListener("resize", moveGlider);
+      setMoonCircle(globe.moonCircle); // shooting stars pass behind the Moon, never in front
       loadLunarNames().then((names) => globe.setFeatures(parseNames(names))); // after the Moon is up
     } catch (error) {
       document.querySelector("#globe").innerHTML =
@@ -587,6 +641,7 @@ async function main() {
     function selectSite(id, { fly = false } = {}) {
       const site = sites.find((s) => s.id === id);
       if (!site) return;
+      if (plan.site !== id || panelEl.classList.contains("closed")) shootingStar();
       plan.site = id;
       document.querySelector("#plan-site").value = id;
       focusState.index = Math.min(focusState.index, analyses[id].rows.length - 1);
@@ -722,12 +777,10 @@ async function main() {
       updateSun();
       const rows = rowsFor(analyses, plan.site);
       const row = rows[focusState.index];
-      const mark = (v) => (v ? "✓ up" : "✗ blocked");
       const out = document.querySelector("#focus-out");
       if (!out) return;
       out.textContent = `${row.time_utc} UTC`;
-      document.querySelector("#focus-view").innerHTML = skyDiagram(analyses[plan.site].skyline_deg, row) +
-        `<p class="focus-now"><span class="sun">Sun ${mark(row.sun_visible)}</span> · <span class="earth">Earth ${mark(row.earth_visible)}</span></p>`;
+      document.querySelector("#focus-view").innerHTML = skyDiagram(analyses[plan.site].skyline_deg, row) + nowLine(row);
     }
     panelEl.addEventListener("input", (e) => {
       if (e.target.id === "focus-time") setIndex("focus", Number(e.target.value));
@@ -853,6 +906,7 @@ async function main() {
     });
     drawPlan();
     showPanel(panelHint()); // empty state: nothing chosen yet
+    startAmbientSky();      // a rare shooting star while the page sits idle (off for reduced motion)
     if (globe) globe.setView("moon", false); // frame the whole Moon in the space beside the panel
 
     // The two scenarios
