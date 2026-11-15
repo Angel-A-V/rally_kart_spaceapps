@@ -53,8 +53,8 @@ function add(el, animationName) {
 // ----- how idle is the page? -----
 // Nothing happens for IDLE_MS after the last click, drag, scroll, key or touch. After that, `idleLevel`
 // climbs from 0 to 1 over RAMP_MS: frequency and brightness both follow it.
-export const IDLE_MS = 12000;
-export const RAMP_MS = 90000;
+export const IDLE_MS = 8000;
+export const RAMP_MS = 60000;
 let lastInput = Date.now();
 
 export function idleLevel(now = Date.now(), last = lastInput) {
@@ -70,9 +70,17 @@ export function shootingStar(boost = 0) {
   if (reduced() || document.hidden) return;
   const star = document.createElement("span");
   star.className = "shooting-star";
-  const fromRight = Math.random() < 0.5;
-  star.style.setProperty("--x", `${(fromRight ? 55 : 10) + Math.random() * 35}vw`);
-  star.style.setProperty("--y", `${4 + Math.random() * 22}vh`);
+  // Start somewhere in open sky: try a few random spots and keep the first one clear of the Moon.
+  const m = moonCircle?.();
+  let fromRight, x, y;
+  for (let i = 0; i < 12; i++) {
+    fromRight = Math.random() < 0.5;
+    x = ((fromRight ? 50 : 5) + Math.random() * 45) * innerWidth / 100;
+    y = (4 + Math.random() * 60) * innerHeight / 100;
+    if (!m || Math.hypot(x - m.x, y - m.y) > m.r + 40) break;
+  }
+  star.style.setProperty("--x", `${x.toFixed(0)}px`);
+  star.style.setProperty("--y", `${y.toFixed(0)}px`);
   star.style.setProperty("--angle", `${fromRight ? 155 + Math.random() * 12 : 13 + Math.random() * 12}deg`);
   star.style.setProperty("--len", `${lerp(70, 160, boost) + Math.random() * lerp(70, 120, boost)}px`);
   star.style.setProperty("--thick", `${lerp(1.5, 2.6, boost).toFixed(2)}px`);
@@ -99,15 +107,20 @@ export function drifter(boost = 0) {
 }
 
 // The ambient sky only plays while the visitor is idle. Waits shrink as idleLevel grows:
-//   shooting star: every 12 to 30 s at first, every 3 to 7 s after RAMP_MS (with the odd pair or trio)
-//   drifting light: every 2 to 4 minutes at first, every 30 to 60 s after RAMP_MS
+//   shooting star: every 3 to 8 s at first, every 1.5 to 4 s after RAMP_MS (with the odd pair or trio)
+//   drifting light: every 25 to 45 s at first, every 12 to 25 s after RAMP_MS
 // While someone is working, the sky stays still (apart from the twinkle).
 export function startAmbientSky() {
   if (startAmbientSky.started) return;
   startAmbientSky.started = true;
-  for (const type of ["pointerdown", "pointermove", "wheel", "keydown", "touchstart"]) {
+  for (const type of ["pointerdown", "wheel", "keydown", "touchstart"]) {
     addEventListener(type, () => { lastInput = Date.now(); }, { passive: true, capture: true });
   }
+  // A resting mouse can twitch a pixel or two; only a real move (over 6 px) counts as being busy.
+  let px = null, py = null;
+  addEventListener("pointermove", (e) => {
+    if (px === null || Math.hypot(e.clientX - px, e.clientY - py) > 6) { lastInput = Date.now(); px = e.clientX; py = e.clientY; }
+  }, { passive: true, capture: true });
   // Re-check often, so the sky reacts within a couple of seconds when someone walks away, rather than
   // waiting out a long timer chosen while they were still busy.
   const every = (fire, [min0, max0], [min1, max1]) => {
@@ -127,6 +140,6 @@ export function startAmbientSky() {
     // Deep into idle, sometimes a second or third streak follows close behind.
     if (k > 0.5 && Math.random() < k * 0.35) setTimeout(() => shootingStar(k), 250 + Math.random() * 600);
     if (k > 0.85 && Math.random() < 0.2) setTimeout(() => shootingStar(k), 900 + Math.random() * 700);
-  }, [12000, 30000], [3000, 7000]);
-  every((k) => drifter(k), [120000, 240000], [30000, 60000]);
+  }, [3000, 8000], [1500, 4000]);
+  every((k) => drifter(k), [25000, 45000], [12000, 25000]);
 }
