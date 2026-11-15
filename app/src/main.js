@@ -98,7 +98,7 @@ function hudTop(sites) {
       </button>
       <div class="brand">
         <h1>Lunar Landing Site Navigator</h1>
-        <p>Sun for power · Earth for radio · NASA data</p>
+        <p>Choosing where to land at the Moon's south pole · NASA data</p>
       </div>
       <form class="search" id="search-form" role="search">
         <label for="site-search" class="visually-hidden">Find a site</label>
@@ -134,10 +134,10 @@ function drawer() {
 function siteGroup(s) {
   if (s.is_model_site) return "Model site";
   if (s.id.startsWith("custom_")) return "Your points";
-  if (/landing site$/.test(s.label)) return "Past landings";
-  return s.lat_deg < 0 ? "South pole region" : "North pole region";
+  if (/landing site$/.test(s.label)) return "Past landings, for comparison";
+  return s.lat_deg < 0 ? "South pole candidates" : "North pole, for comparison";
 }
-const GROUP_ORDER = ["Model site", "South pole region", "North pole region", "Past landings", "Your points"];
+const GROUP_ORDER = ["Model site", "South pole candidates", "Your points", "North pole, for comparison", "Past landings, for comparison"];
 
 function sitesList(sites) {
   const pct = (v) => `${Math.round(v)}%`;
@@ -179,10 +179,13 @@ function panel() {
 // The empty state of the analysis panel.
 function panelHint() {
   return `
-    <h3>Pick a place on the Moon</h3>
-    <p>Click a site to fly there and see how often the Sun (power) and Earth (radio) are up.
-    <strong>Right-click</strong> (or press and hold) anywhere to analyse any point with NASA data.</p>
-    <p><button type="button" class="primary" data-site="shackleton_rim">Start at the model site: Shackleton rim</button></p>`;
+    <h3>Where should we land at the south pole?</h3>
+    <p>The Moon's south pole has ridges that stay in sunlight most of the year, right beside craters that never
+    see the Sun and may hold water ice. A lander needs the <span class="sun">Sun</span> for power and a clear line
+    to <span class="earth">Earth</span> for radio, and the hills decide both.</p>
+    <p>Click a site to see how often each is above its skyline, or <strong>right-click</strong> (press and hold on
+    a phone) anywhere on the Moon to analyse that point with NASA data.</p>
+    <p><button type="button" class="primary" data-site="shackleton_rim">Start at Shackleton rim</button></p>`;
 }
 
 // A clicked spot that has not been analysed yet.
@@ -766,7 +769,11 @@ async function main() {
     });
     drawPlan();
     showPanel(panelHint()); // empty state: nothing chosen yet
-    if (globe) globe.setView("moon", false); // frame the whole Moon in the space beside the panel
+    if (globe) {
+      // Open on the whole Moon, then descend to the south pole: that is where this project looks.
+      globe.setView("moon", false);
+      setTimeout(() => globe.setView("pole"), 1200);
+    }
 
     // The two scenarios
     for (const id of ["a", "b"]) {

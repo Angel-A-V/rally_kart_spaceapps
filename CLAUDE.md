@@ -90,6 +90,10 @@ Interface contract fields still blank in the plan: model footprint, stepper/serv
 
 ## Current state (updated 2026-11-10) and decisions since the plan
 
+- **Numbers to quote (2026-11-15, what the app shows):** Shackleton rim over the year: Sun **78.2%**, Earth **50.0%**, both **40.2%**. Older figures in the notes below (79.7 / 50.7 / 41.1) came from the first 35 km skyline; the website's skyline also sees mountains out to 250 km, which block a little more. Use the app's numbers on slides.
+- **Pole distances (fixed 2026-11-15, Darren's catch):** anything shown to people is the distance along the surface, `R * radians(angle from the pole)` (`sites.surface_km_from_pole`, `export_site_json._pole_distance_km`, `siteInfo.js`). The stereographic `2R tan(...)` formula stays only where it picks terrain maps (`sites._pole_distance_km`, `custom_point.pole_distance_km`). `pole_distance_km` in the JSON = surface km from the SOUTH pole (Apollo 11: 2,749.5; Peary: 5,414.8).
+- **South pole emphasis (Darren's note, `Notes/suggestions-from-Darren.md`):** the app opens with a descent to the south pole, the tagline and first panel say why the south pole, and the Sites list puts south pole candidates first with the north pole and past landings marked "for comparison".
+
 Read `docs/context-handoff.md` for the full story. Short version:
 - **No machine learning.** Everything is physics and geometry from NASA data, so numbers can be traced and checked. Do not add ML.
 - **Time is about 2 days** (in practice about 12 hours on Saturday and 5 on Sunday; see `docs/event-day.md`). The hardware was cut to a two-day design: the Moon surface (a ~140 mm disc with the printed terrain wall) rotates on the stepper under a fixed lamp. Nothing electrical rides on the disc. One site only for the model. The older plan text still describes the moving Sun ring and servo Earth arm; the handoff file overrides it.

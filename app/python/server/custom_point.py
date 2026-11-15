@@ -26,7 +26,7 @@ from export_site_json import MONTH, ROOT, START, YEAR, assemble_payload, index_e
 from fetch_horizons import fetch_rows  # noqa: E402
 
 CACHE_DIR = os.path.join(ROOT, "data", "custom")
-CACHE_VERSION = 2          # bump when the payload shape or the analysis changes, to ignore old answers
+CACHE_VERSION = 3          # bump when the payload shape or the analysis changes, to ignore old answers
 R_KM = 1737.4
 NEAR_KM = 35.0             # same look-out distances as make_skyline.py
 BAND_REACH_KM = 50.0       # the cut-down 20 m band covers this far from the pole
@@ -62,6 +62,7 @@ def point_id(lat, lon):
 
 
 def pole_distance_km(lat):
+    """Distance from the south pole on the polar MAP (stereographic): for choosing terrain maps, not for display."""
     return 2 * R_KM * math.tan(math.radians(90.0 + lat) / 2)
 
 
@@ -124,7 +125,8 @@ def _span(cfg):
 
 
 def _describe(lat, lon, terrain):
-    where = f"{pole_distance_km(lat):.0f} km from the south pole" if lat < 0 else "in the northern hemisphere"
+    pole = "south" if lat < 0 else "north"
+    where = f"{R_KM * math.radians(90.0 - abs(lat)):.0f} km from the {pole} pole"   # along the surface
     if terrain is None:
         return (f"A point chosen by you ({where}). No downloaded terrain map covers this point, so the "
                 "horizon is treated as FLAT (0 deg everywhere). Real terrain can change the answer either way: "
