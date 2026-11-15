@@ -19,7 +19,7 @@ breaking anyone else's work.
      player and event ticks are on the analysis panel's slider and both compare cards)
   5. Polish. **partly done:** sharp close-ups (a patch of higher-zoom Moon Trek tiles loads for the area
      in view once the camera rests: `detailWindow` in `src/geo.js`, `updatePatch` in `src/globe.js`),
-     flat dot-and-ring markers, centred pole views, San Francisco type. *todo:* day/night lighting toggle.
+     flat dot-and-ring markers, centred pole views, San Francisco type. day/night shading from the real Sun position (on/off) and the LOLA elevation layer (on/off) are in the bottom bar.
 - Update this list when you finish or start a phase.
 
 ## Design direction (the contract)
@@ -93,6 +93,13 @@ breaking anyone else's work.
 New UI pieces go in their own pure modules (for example `src/ui/contextMenu.js`, `src/features.js`)
 with a `*.test.js` next to them.
 
+## One clock
+
+There is ONE time for the whole page (`focusState.index` in `main.js`, changed only through `setIndex`): the
+bar at the top, the analysis panel's slider, both compare cards and the day/night + shadow shading all follow
+it. Only exception: with "Same time for A and B" unticked, scenario B keeps its own time. Do not add another
+independent time slider.
+
 ## Globe API (`src/globe.js`)
 
 ```js
@@ -109,6 +116,9 @@ globe.setView("near" | "far" | "pole" | "north" | "moon")   // poles are centred
 globe.addSite(site) / removeSite(id)
 globe.markPending(lat, lon) / markPending(null)   // yellow dot while the backend works
 globe.setPin(lat, lon) / setPin(null)             // pulsing ring on the selected site or clicked point
+globe.setSun([x, y, z] | null)                     // day/night shading; direction from geo.js sunDirection
+globe.setShadows(on)                               // terrain-cast shadows (needs setSun; loads /data/moon_height.png once)
+globe.setLayer("photo" | "lola")                   // the picture the Moon wears (geo.js LAYERS)
 globe.setInset(rightPx, bottomPx)                  // centre the Moon beside a panel / above a bottom sheet
 ```
 

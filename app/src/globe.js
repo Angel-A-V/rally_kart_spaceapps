@@ -10,7 +10,7 @@
 //              or long press on the surface (x, y = screen position for a menu); onHover: cursor moved.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { detailWindow, flightPoint, latLonToXyz, tileGrid, tileUrl, xyzToLatLon } from "./geo.js";
+import { LAYERS, detailWindow, flightPoint, latLonToXyz, tileGrid, tileUrl, xyzToLatLon } from "./geo.js";
 import { isOnNearHalf, minDiameterKm } from "./features.js";
 
 const TILE_PX = 256;
@@ -34,7 +34,7 @@ const colorFor = (site) =>
   site.is_model_site ? COLORS.model : site.id.startsWith("custom_") ? COLORS.custom : COLORS.named;
 
 // Paint Moon Trek tiles onto one big canvas that three.js uses as the Moon's surface.
-function loadSurface(texture, canvas) {
+function loadSurface(texture, canvas, layer = "photo", isCurrent = () => true) {
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#6f6f6f";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -46,10 +46,11 @@ function loadSurface(texture, canvas) {
         const img = new Image();
         img.crossOrigin = "anonymous"; // Moon Trek allows this (Access-Control-Allow-Origin: *)
         img.onload = () => {
+          if (!isCurrent()) return; // the layer was switched while this tile was on its way
           ctx.drawImage(img, col * size, row * size, size, size);
           texture.needsUpdate = true;
         };
-        img.src = tileUrl(zoom, row, col);
+        img.src = tileUrl(zoom, row, col, layer);
       }
     }
   };
@@ -94,6 +95,8 @@ export function createGlobe(container, sites, handlers = {}) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  let layer = "photo";
+  let surfaceToken = 0;
   loadSurface(texture, canvas);
   const moon = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 96), new THREE.MeshBasicMaterial({ map: texture }));
   scene.add(moon);
@@ -110,8 +113,9 @@ export function createGlobe(container, sites, handlers = {}) {
     const halfV = THREE.MathUtils.degToRad(camera.fov / 2);
     const reach = Math.hypot(Math.tan(halfV), Math.tan(halfV) * camera.aspect) * (d - 1);
     const viewDeg = Math.min(60, THREE.MathUtils.radToDeg(reach) * 1.25);
-    const win = d > 2.8 ? null : detailWindow(under.lat, ((under.lon + 180) % 360 + 360) % 360 - 180, viewDeg);
-    const key = win ? [win.zoom, win.row0, win.rows, win.col0, win.cols].join("/") : "none";
+    const win = d > 2.8 ? null
+      : detailWindow(under.lat, ((under.lon + 180) % 360 + 360) % 360 - 180, viewDeg, { maxZoom: LAYERS[layer].maxZoom });
+    const key = win ? [layer, win.zoom, win.row0, win.rows, win.col0, win.cols].join("/") : `none/${layer}`;
     if (patch && patch.key === key) return;
     const token = ++patchToken;
     const old = patch;
@@ -164,12 +168,21 @@ export function createGlobe(container, sites, handlers = {}) {
           ctx.drawImage(img, c * win.tileW, r * TILE_PX, win.tileW, TILE_PX);
           tex.needsUpdate = true;
         };
-        img.src = tileUrl(win.zoom, win.row0 + r, ((win.col0 + c) % total + total) % total);
+        img.src = tileUrl(win.zoom, win.row0 + r, ((win.col0 + c) % total + total) % total, layer);
       }
     }
   };
   let restAt = 0;
   const lastCam = new THREE.Vector3();
+  // Swap the picture the Moon wears ("photo" or "lola"): reload the base picture and the sharp patch.
+  const setLayer = (name) => {
+    if (!LAYERS[name] || name === layer) return;
+    layer = name;
+    const token = ++surfaceToken;
+    loadSurface(texture, canvas, layer, () => token === surfaceToken);
+    restAt = performance.now() + 900; // let the base picture arrive, then refresh the patch
+    if (patch?.mesh) patch.mesh.visible = false;
+  };
 
   // Site markers: a small dot to see, and a bigger invisible ball around it that is easier to click.
   const markers = [];
@@ -180,19 +193,28 @@ export function createGlobe(container, sites, handlers = {}) {
   const addSite = (site) => {
     if (markers.some((m) => m.site.id === site.id)) return;
     const position = new THREE.Vector3(...latLonToXyz(site.lat_deg, site.lon_deg_east, 1.003));
-    // A flat dot with a ring around it, lying on the surface (so it never sinks into the Moon and
-    // thins out naturally towards the edge of the disc).
+    // A dot with a ring around it that always faces the viewer (round at every angle). It is drawn
+    // over the Moon without a depth test, so it never sinks into the surface; the frame loop hides
+    // it when its site is on the far side.
     const dot = new THREE.Mesh(
       new THREE.CircleGeometry(MARKER_RADIUS * 0.5, 24),
-      new THREE.MeshBasicMaterial({ color: colorFor(site), side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ color: colorFor(site), depthTest: false, transparent: true }) // transparent so it sorts after the backing disc
     );
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(MARKER_RADIUS * 0.8, MARKER_RADIUS, 32),
-      new THREE.MeshBasicMaterial({ color: colorFor(site), side: THREE.DoubleSide, transparent: true, opacity: 0.75 })
+      new THREE.MeshBasicMaterial({ color: colorFor(site), transparent: true, opacity: 0.75, depthTest: false })
     );
+    // A dark disc behind the dot and ring, so they read on any picture (photo or the LOLA colours).
+    const back = new THREE.Mesh(
+      new THREE.CircleGeometry(MARKER_RADIUS * 1.25, 32),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6, depthTest: false })
+    );
+    back.renderOrder = 9;
+    dot.renderOrder = 11;
+    ring.renderOrder = 10;
     dot.add(ring);
+    dot.add(back);
     dot.position.copy(position);
-    dot.lookAt(position.clone().multiplyScalar(2)); // face outward
     scene.add(dot);
     const hit = new THREE.Mesh(new THREE.SphereGeometry(MARKER_RADIUS * 2.2, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.copy(position);
@@ -244,6 +266,74 @@ export function createGlobe(container, sites, handlers = {}) {
   );
   pin.visible = false;
   scene.add(pin);
+
+  // Day and night: a see-through dark shell over the half of the Moon facing away from the Sun.
+  // The Sun's direction comes from NASA JPL Horizons (main.js, via geo.js sunDirection).
+  const night = new THREE.Mesh(
+    new THREE.SphereGeometry(1.0015, 96, 64),
+    new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: { sunDir: { value: new THREE.Vector3(1, 0, 0) }, heightMap: { value: null }, shadows: { value: 0 } },
+      vertexShader: "varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      // Night: the Sun is below a smooth horizon. Terrain shadows (when the LOLA height map is loaded):
+      // from each point, step towards the Sun (about 2 km to 300 km away) and see whether the ground
+      // along the way rises above the line of sight. The Sun's disc gives the shadow a soft edge.
+      fragmentShader: `
+        uniform vec3 sunDir; uniform sampler2D heightMap; uniform float shadows; varying vec3 vDir;
+        float heightAt(vec3 d) {
+          vec2 uv = vec2(atan(-d.z, d.x) / 6.2831853 + 0.5, asin(clamp(d.y, -1.0, 1.0)) / 3.14159265 + 0.5);
+          vec4 t = texture2D(heightMap, uv);
+          return ((t.r * 255.0 * 256.0 + t.g * 255.0) * 0.5 - 12000.0) / 1737400.0;  // metres -> Moon radii
+        }
+        void main() {
+          vec3 d = normalize(vDir);
+          float s = dot(d, sunDir);
+          float lit = smoothstep(-0.04, 0.07, s);
+          if (shadows > 0.5) {
+            lit = smoothstep(-0.02, 0.02, s);
+            if (s > -0.03) {
+              vec3 p = d * (1.0 + heightAt(d) + 0.00003);
+              float margin = 1.0;
+              float t = 0.0012;
+              for (int i = 0; i < 40; i++) {
+                vec3 q = p + sunDir * t;
+                float r = length(q);
+                margin = min(margin, (r - 1.0 - heightAt(q / r)) / t);
+                t *= 1.14;
+              }
+              lit = min(lit, smoothstep(-0.006, 0.004, margin));
+            }
+          }
+          gl_FragColor = vec4(0.0, 0.0, 0.0, (1.0 - lit) * 0.62);
+        }`,
+    })
+  );
+  night.visible = false;
+  scene.add(night);
+  // Terrain shadows need the LOLA height picture (8.6 MB): loaded the first time they are switched on.
+  let heightRequested = false;
+  let shadowsWanted = false;
+  const setShadows = (on) => {
+    shadowsWanted = on;
+    const u = night.material.uniforms;
+    if (on && !heightRequested) {
+      heightRequested = true;
+      new THREE.TextureLoader().load("/data/moon_height.png", (tex) => {
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.generateMipmaps = false;
+        tex.wrapS = THREE.RepeatWrapping;
+        u.heightMap.value = tex;
+        u.shadows.value = shadowsWanted ? 1 : 0;
+      });
+    }
+    u.shadows.value = on && u.heightMap.value ? 1 : 0;
+  };
+  const setSun = (dir) => {
+    night.visible = Boolean(dir);
+    if (dir) night.material.uniforms.sunDir.value.set(...dir).normalize();
+  };
   const setPin = (lat, lon) => {
     if (lat === null || lat === undefined) {
       pin.visible = false;
@@ -444,6 +534,8 @@ export function createGlobe(container, sites, handlers = {}) {
       m.hit.scale.setScalar(scale);
       toCamera.copy(camera.position).sub(m.position);
       const facing = toCamera.dot(m.position) > 0; // false when the site is on the far side
+      m.dot.visible = facing;
+      m.dot.quaternion.copy(camera.quaternion);     // face the viewer
       projected.copy(m.position).project(camera);
       const x = ((projected.x + 1) / 2) * width();
       const y = ((1 - projected.y) / 2) * height();
@@ -492,8 +584,10 @@ export function createGlobe(container, sites, handlers = {}) {
     if (i < 0) return;
     const m = markers[i];
     scene.remove(m.dot, m.hit);
-    m.dot.children[0].geometry.dispose();
-    m.dot.children[0].material.dispose();
+    for (const child of m.dot.children) {
+      child.geometry.dispose();
+      child.material.dispose();
+    }
     m.dot.geometry.dispose();
     m.dot.material.dispose();
     m.hit.geometry.dispose();
@@ -504,5 +598,5 @@ export function createGlobe(container, sites, handlers = {}) {
     if (selectedId === siteId) selectedId = null;
   };
 
-  return { select, flyTo, setView, setPin, setInset, setFeatures, addSite, removeSite, markPending };
+  return { select, flyTo, setView, setPin, setInset, setFeatures, setSun, setShadows, setLayer, addSite, removeSite, markPending };
 }

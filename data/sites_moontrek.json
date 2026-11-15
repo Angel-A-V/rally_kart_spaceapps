@@ -53,9 +53,9 @@
       "kind": "feature",
       "lat_deg": -84.81,
       "lon_deg_east": 38.15,
-      "pole_distance_km": 157.5,
+      "pole_distance_km": 157.4,
       "nearest_pole": "south",
-      "nearest_pole_km": 157.5,
+      "nearest_pole_km": 157.4,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=25&key=Mons+Mouton&facetKeys=itemType&facetValues=nomenclature"
     },
     {
@@ -64,9 +64,9 @@
       "kind": "feature",
       "lat_deg": -84.798043,
       "lon_deg_east": 12.305737,
-      "pole_distance_km": 157.8,
+      "pole_distance_km": 157.7,
       "nearest_pole": "south",
-      "nearest_pole_km": 157.8,
+      "nearest_pole_km": 157.7,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=25&key=Malapert&facetKeys=itemType&facetValues=nomenclature"
     },
     {
@@ -75,9 +75,9 @@
       "kind": "feature",
       "lat_deg": -85.277073,
       "lon_deg_east": 318.1945,
-      "pole_distance_km": 143.3,
+      "pole_distance_km": 143.2,
       "nearest_pole": "south",
-      "nearest_pole_km": 143.3,
+      "nearest_pole_km": 143.2,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=25&key=Cabeus&facetKeys=itemType&facetValues=nomenclature"
     },
     {
@@ -86,7 +86,7 @@
       "kind": "feature",
       "lat_deg": 88.568812,
       "lon_deg_east": 25.734194,
-      "pole_distance_km": 278203.9,
+      "pole_distance_km": 5414.8,
       "nearest_pole": "north",
       "nearest_pole_km": 43.4,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=25&key=Peary&facetKeys=itemType&facetValues=nomenclature"
@@ -97,7 +97,7 @@
       "kind": "feature",
       "lat_deg": 86.076955,
       "lon_deg_east": 268.686039,
-      "pole_distance_km": 101458.7,
+      "pole_distance_km": 5339.2,
       "nearest_pole": "north",
       "nearest_pole_km": 119.0,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=25&key=Hermite&facetKeys=itemType&facetValues=nomenclature"
@@ -108,7 +108,7 @@
       "kind": "feature",
       "lat_deg": 89.142844,
       "lon_deg_east": 119.920321,
-      "pole_distance_km": 464530.8,
+      "pole_distance_km": 5432.2,
       "nearest_pole": "north",
       "nearest_pole_km": 26.0,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=25&key=Whipple&facetKeys=itemType&facetValues=nomenclature"
@@ -119,7 +119,7 @@
       "kind": "feature",
       "lat_deg": 85.492761,
       "lon_deg_east": 201.559516,
-      "pole_distance_km": 88297.4,
+      "pole_distance_km": 5321.5,
       "nearest_pole": "north",
       "nearest_pole_km": 136.7,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=25&key=Rozhdestvenskiy&facetKeys=itemType&facetValues=nomenclature"
@@ -130,9 +130,9 @@
       "kind": "feature",
       "lat_deg": 85.380246,
       "lon_deg_east": 12.048116,
-      "pole_distance_km": 86144.6,
+      "pole_distance_km": 5318.1,
       "nearest_pole": "north",
-      "nearest_pole_km": 140.2,
+      "nearest_pole_km": 140.1,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=25&key=Byrd&facetKeys=itemType&facetValues=nomenclature"
     },
     {
@@ -141,9 +141,9 @@
       "kind": "landing_site",
       "lat_deg": 0.671185,
       "lon_deg_east": 23.48417,
-      "pole_distance_km": 3515.7,
+      "pole_distance_km": 2749.5,
       "nearest_pole": "north",
-      "nearest_pole_km": 3434.3,
+      "nearest_pole_km": 2708.7,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=40&q=Apollo+11"
     },
     {
@@ -152,9 +152,9 @@
       "kind": "landing_site",
       "lat_deg": -3.01355,
       "lon_deg_east": 336.57452,
-      "pole_distance_km": 3296.7,
+      "pole_distance_km": 2637.7,
       "nearest_pole": "south",
-      "nearest_pole_km": 3296.7,
+      "nearest_pole_km": 2637.7,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=40&q=Apollo+12"
     },
     {
@@ -163,9 +163,9 @@
       "kind": "landing_site",
       "lat_deg": -3.638545,
       "lon_deg_east": 342.54718,
-      "pole_distance_km": 3260.9,
+      "pole_distance_km": 2618.8,
       "nearest_pole": "south",
-      "nearest_pole_km": 3260.9,
+      "nearest_pole_km": 2618.8,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=40&q=Apollo+14"
     },
     {
@@ -174,9 +174,9 @@
       "kind": "landing_site",
       "lat_deg": 26.05661,
       "lon_deg_east": 3.62161,
-      "pole_distance_km": 5567.0,
+      "pole_distance_km": 3519.2,
       "nearest_pole": "north",
-      "nearest_pole_km": 2168.9,
+      "nearest_pole_km": 1939.0,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=40&q=Apollo+15"
     },
     {
@@ -185,9 +185,9 @@
       "kind": "landing_site",
       "lat_deg": -8.983335,
       "lon_deg_east": 15.496725,
-      "pole_distance_km": 2968.6,
+      "pole_distance_km": 2456.7,
       "nearest_pole": "south",
-      "nearest_pole_km": 2968.6,
+      "nearest_pole_km": 2456.7,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=40&q=Apollo+16"
     },
     {
@@ -196,9 +196,9 @@
       "kind": "landing_site",
       "lat_deg": 20.234,
       "lon_deg_east": 30.722,
-      "pole_distance_km": 4984.2,
+      "pole_distance_km": 3342.7,
       "nearest_pole": "north",
-      "nearest_pole_km": 2422.5,
+      "nearest_pole_km": 2115.5,
       "query": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems?start=0&rows=40&q=Apollo+17"
     }
   ]

@@ -21,7 +21,17 @@ SKYLINE_RANGE_KM = 35.0
 
 
 def _pole_distance_km(lat_deg):
+    """Distance from the south pole ON THE POLAR MAP (stereographic), for choosing terrain maps only.
+    It overshoots away from the pole; never show it to people. Use surface_km_from_pole() for that."""
     return 2 * R_KM * math.tan(math.radians(90.0 + lat_deg) / 2)
+
+
+def surface_km_from_pole(lat_deg, pole="nearest"):
+    """Distance along the Moon's surface from a pole, in km (arc length). pole: "south", "north" or "nearest"."""
+    if pole == "nearest":
+        pole = "south" if lat_deg < 0 else "north"
+    angle = 90.0 + lat_deg if pole == "south" else 90.0 - lat_deg
+    return R_KM * math.radians(angle)
 
 
 SITES = {
@@ -57,7 +67,7 @@ if os.path.exists(_trek_path):
             SITE_INFO[_s["id"]] = (
                 _s["name"],
                 f"Centre of the named lunar feature {_s['name']}, "
-                f"{_pole_distance_km(-abs(_s['lat_deg'])):.0f} km from the {'south' if _s['lat_deg'] < 0 else 'north'} pole. "
+                f"{surface_km_from_pole(_s['lat_deg']):.0f} km from the {'south' if _s['lat_deg'] < 0 else 'north'} pole. "
                 "A named place, not a chosen landing spot.",
             )
             SITE_SOURCE[_s["id"]] = f"NASA Moon Trek (IAU nomenclature), retrieved {_trek['retrieved_utc']}"

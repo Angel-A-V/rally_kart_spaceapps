@@ -67,7 +67,9 @@ def _queries(site, cfg):
 
 
 def _pole_distance_km(lat):
-    return round(2 * 1737.4 * math.tan(math.radians(90.0 + lat) / 2), 1)
+    """Distance along the surface from the SOUTH pole, in km (arc length), for display.
+    (Not the polar-map formula 2R tan(...), which is only right close to the pole.)"""
+    return round(1737.4 * math.radians(90.0 + lat), 1)
 
 
 def _year_rows(site, skyline):

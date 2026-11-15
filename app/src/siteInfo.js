@@ -4,9 +4,9 @@ import { formatDuration } from "./format.js";
 
 export function siteInfo(site) {
   const y = site.year;
-  // Distance from the nearer pole (same polar-map formula as the Python side, Moon radius 1737.4 km).
+  // Distance along the surface from the nearer pole (arc length, Moon radius 1737.4 km).
   const pole = site.lat_deg < 0 ? "south" : "north";
-  const poleKm = 2 * 1737.4 * Math.tan(((90 - Math.abs(site.lat_deg)) * Math.PI) / 360);
+  const poleKm = (1737.4 * (90 - Math.abs(site.lat_deg)) * Math.PI) / 180;
   const height = `${site.site_height_m >= 0 ? "+" : ""}${Math.round(site.site_height_m).toLocaleString("en-US")} m`;
   return `
     <h3>${site.label}</h3>

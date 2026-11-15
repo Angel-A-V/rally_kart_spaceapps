@@ -1,9 +1,35 @@
 # Lunar Landing Site Navigator (NASA Space Apps 2026, Challenge 11)
 
-A website that compares two spots on the Moon's south pole and shows which is
-better for a landing: is the Sun up (power) and is Earth up (radio link)?
-A small tabletop model shows one site with a lamp as the Sun and a printed copy
-of the real horizon.
+A website for choosing where to land at the Moon's south pole: at any site and time, is the Sun
+up (power) and is Earth up (direct radio link), once the real hills around it are counted?
+A small tabletop model shows one site with a lamp as the Sun and a printed copy of the real horizon.
+
+**Status (2026-11-15):** the data analysis and its accuracy checks are done. The website is a
+full-screen 3D Moon (branch `ui-overhaul` has the newest version; `main` follows by pull request).
+Hardware (disc, stand, firmware, website-to-disc link) is the open work: see the GitHub issues.
+
+## What the website does
+
+- **3D Moon** with 39 sites (south pole candidates, north pole and past landings for comparison) and the
+  official feature names, which appear as you zoom. Click a site to fly there; **right-click anywhere**
+  (press and hold on a phone) to analyse any point with live NASA data (needs the backend).
+- **Analysis panel** for the chosen place: Sun, Earth and both visible over a year, longest stretches, the
+  sky at one moment (horizon strip), and the accuracy checks for that site.
+- **One clock** in the top bar (play, step, speed): the sky strips, the comparison and the shading on the
+  Moon all follow it.
+- **Bottom bar:** camera views; day and night from the real Sun position; terrain shadows computed from
+  LOLA heights; an elevation (LOLA) layer.
+- **Menu (top left):** sites, compare two sites or two moments, add a point by coordinates, plan a mission
+  (best landing windows), the year for every site, hourly table, how accurate it is, data sources.
+- **How accurate:** checked against NASA Goddard's polar illumination maps, the Apollo records, LROC
+  stereo terrain and physics rules (`docs/crosscheck-pgda.md`, `docs/crosscheck-nonpolar.md`).
+
+Run it on a laptop (two terminals, from the repo root; Node 18+ for the second):
+
+```
+.venv/bin/python app/python/server/app.py     # backend, http://127.0.0.1:8000
+cd app && npm install && npm run dev          # website, http://localhost:5173
+```
 
 Team: Angel (code, electronics), Gustavo (disc and terrain wall), Darren (stand and lamp).
 Start with `CLAUDE.md` (short project brief) and `docs/context-handoff.md` (full context).
@@ -92,6 +118,15 @@ HOST=0.0.0.0 python3 app/python/server/app.py          # the whole site on port 
 curl http://localhost:8000/api/health                  # "LDEM_128": true means click-anywhere has real terrain
 ```
 
+**Hardware work does not need to wait for the website.** The link between them is one text line per
+update, `SUN <azimuth> <elevation>` (plus `EARTH`, `HOME`, `STATUS`), sent from the Python server to the
+board's microcontroller. The numbers come from the same site files whatever the page looks like, so the
+stepper bench test (#13), the firmware (#14) and the stand can go ahead now; only the last step (#15, the
+page sending the line) touches website code. After a website update, re-copy `app/dist` and restart the server.
+
+The Moon pictures, sharp close-ups and feature tiles load live from NASA Moon Trek, so the UNO Q (or the
+laptop showing the page) needs internet for them; the analysis of the 39 curated sites works offline.
+
 `fetch_raw_data.py --list` shows what is present; it skips complete files and resumes broken downloads.
 Only `LDEM_128.IMG` is used while the site runs; the other files are for re-running the accuracy checks.
 Copying `data/raw/` over USB or `scp` is faster than downloading; run `--list` afterwards to confirm.
@@ -118,9 +153,14 @@ Columns: `time_utc, sun_az_deg, sun_el_deg, earth_az_deg, earth_el_deg`.
 | `for_gustavo/` | One-page wall note and the skyline CSV for Gustavo |
 | `NasaSpaceApps-Challenges/` | Challenge text (11 primary, 3 backup) |
 
-Everything outside `app/` is team context (docs, CAD, handoffs, shared data). Planned inside `app/`, not created yet: a Python server and the `sketch/` firmware.
+Everything outside `app/` is team context (docs, CAD, handoffs, shared data). The Python server is `app/python/server/`. Planned inside `app/`, not created yet: the `sketch/` firmware. UI rules for anyone (or any agent) changing the website: `app/CLAUDE.md`.
 
 ## Data sources
 
-NASA LRO LOLA gridded elevation (LDEM_85S_20M, PDS Geosciences Node).
-NASA JPL Horizons (ephemeris DE441, Moon orientation including libration) for Sun/Earth directions.
+- NASA LRO LOLA gridded elevation: LDEM_85S_20M and LDEM_80S_40M (south pole), LDEM_128 (whole Moon), PDS Geosciences Node.
+- NASA JPL Horizons (ephemeris DE441, Moon orientation including libration) for Sun and Earth directions.
+- NASA Moon Trek: Moon pictures (LRO WAC mosaic, LOLA colour hillshade), site coordinates and landing-site bookmarks.
+- IAU / USGS Gazetteer of Planetary Nomenclature: feature names.
+- Accuracy checks: NASA GSFC PGDA polar illumination maps (Mazarico et al. 2011), Apollo Lunar Surface Journal
+  Sun/Earth angles, NASA LROC NAC stereo terrain models.
+- Past landing coordinates: Wikipedia's list of artificial objects on the Moon, with the source each entry cites.

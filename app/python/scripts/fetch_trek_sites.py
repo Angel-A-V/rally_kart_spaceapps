@@ -34,13 +34,13 @@ def slug(name):
 
 
 def nearest_pole_km(lat_deg):
-    """Distance from the nearer pole (north for north latitudes), in km, same formula as pole_distance_km."""
+    """Distance along the surface from the nearer pole (north for north latitudes), in km."""
     return pole_distance_km(-abs(lat_deg))
 
 
 def pole_distance_km(lat_deg):
-    """Distance from the south pole on the polar map, in km (same formula the terrain maps use)."""
-    return 2 * R_KM * math.tan(math.radians(90.0 + lat_deg) / 2)
+    """Distance along the Moon's surface from the south pole, in km (arc length)."""
+    return R_KM * math.radians(90.0 + lat_deg)
 
 
 def pick_feature(docs, name):

@@ -91,3 +91,30 @@ test("detailWindow: nothing to load when the whole Moon is in view", async () =>
   const { detailWindow } = await import("./geo.js");
   assert.equal(detailWindow(0, 0, 60, { maxRows: 2 }), null);
 });
+
+test("sunDirection: Sun overhead points straight up from the site; on the eastern horizon points east", async () => {
+  const { sunDirection } = await import("./geo.js");
+  closeXyz(sunDirection(10, 30, 0, 90), latLonToXyz(10, 30));
+  closeXyz(sunDirection(0, 0, 90, 0), latLonToXyz(0, 90));   // from 0 N 0 E, due east is 90 E
+  closeXyz(sunDirection(0, 0, 0, 0), latLonToXyz(90, 0));    // due north is the north pole
+});
+
+test("sunDirection: two very different sites agree on where the Sun is (real NASA Horizons rows)", async () => {
+  const { sunDirection } = await import("./geo.js");
+  const { readFileSync } = await import("node:fs");
+  const load = (id) => JSON.parse(readFileSync(new URL(`../public/data/${id}_analysis.json`, import.meta.url), "utf8"));
+  const sites = JSON.parse(readFileSync(new URL("../public/data/sites.json", import.meta.url), "utf8"));
+  const dir = (id, i) => {
+    const s = sites.find((x) => x.id === id);
+    const r = load(id).rows[i];
+    return sunDirection(s.lat_deg, s.lon_deg_east, r.sun_az_deg, r.sun_el_deg);
+  };
+  for (const i of [0, 200, 500, 720]) {
+    const a = dir("shackleton_rim", i);
+    const b = dir("apollo_11", i);
+    const c = dir("peary", i);
+    const angle = (p, q) => (Math.acos(Math.min(1, p[0] * q[0] + p[1] * q[1] + p[2] * q[2])) * 180) / Math.PI;
+    assert.ok(angle(a, b) < 0.1, `rim vs Apollo 11 at row ${i}: ${angle(a, b)} deg`);
+    assert.ok(angle(a, c) < 0.1, `rim vs Peary at row ${i}: ${angle(a, c)} deg`);
+  }
+});

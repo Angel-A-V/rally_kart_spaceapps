@@ -1,6 +1,7 @@
 import "./style.css";
 import { loadChecks, loadCrosscheck, loadCustomPoint, loadLunarNames, loadSites, loadSiteAnalysis } from "./data.js";
 import { parseNames } from "./features.js";
+import { sunDirection } from "./geo.js";
 import { atAGlance } from "./compare.js";
 import { advance, playerHtml, ticksHtml } from "./timeline.js";
 import { accuracyNote, accuracyPanel } from "./accuracy.js";
@@ -90,7 +91,7 @@ const MENU = [
   ["sources", "Data sources", "Where every number comes from"],
 ];
 
-function hudTop(sites) {
+function hudTop(sites, last) {
   return `
     <header class="hud hud-top">
       <button type="button" id="menu-btn" class="icon-btn" aria-label="Menu" aria-expanded="false" aria-controls="drawer">
@@ -98,7 +99,12 @@ function hudTop(sites) {
       </button>
       <div class="brand">
         <h1>Lunar Landing Site Navigator</h1>
-        <p>Sun for power · Earth for radio · NASA data</p>
+        <p>Choosing where to land at the Moon's south pole · NASA data</p>
+      </div>
+      <div class="clock" aria-label="Time (one clock for the whole page)">
+        ${playerHtml("clock")}
+        <input type="range" id="clock-time" min="0" max="${last}" value="0" aria-label="Time">
+        <output id="clock-out"></output>
       </div>
       <form class="search" id="search-form" role="search">
         <label for="site-search" class="visually-hidden">Find a site</label>
@@ -113,6 +119,10 @@ function quickViews() {
   return `
     <nav class="hud quick-views" aria-label="Camera views">
       ${views.map(([v, label]) => `<button type="button" data-view="${v}">${label}</button>`).join("")}
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" id="sun-toggle" aria-pressed="true" title="Shade the half of the Moon that is in night at the chosen time (Sun position from NASA JPL Horizons)">Day and night: <span id="sun-state">on</span> </button>
+      <button type="button" id="shadow-toggle" aria-pressed="true" title="Shadows cast by hills and crater walls, worked out from NASA LOLA heights and the real Sun direction (about 4 km detail)">Terrain shadows: <span id="shadow-state">on</span></button>
+      <button type="button" id="lola-toggle" aria-pressed="false" title="Colour the Moon by height (NASA LRO LOLA laser altimeter): cool colours are low ground, warm colours are high">Elevation (LOLA): <span id="lola-state">off</span></button>
     </nav>
     <div class="hud readout" id="readout" aria-hidden="true">Move over the Moon</div>
     <ul class="hud legend-mini" aria-label="Map legend">
@@ -134,10 +144,10 @@ function drawer() {
 function siteGroup(s) {
   if (s.is_model_site) return "Model site";
   if (s.id.startsWith("custom_")) return "Your points";
-  if (/landing site$/.test(s.label)) return "Past landings";
-  return s.lat_deg < 0 ? "South pole region" : "North pole region";
+  if (/landing site$/.test(s.label)) return "Past landings, for comparison";
+  return s.lat_deg < 0 ? "South pole candidates" : "North pole, for comparison";
 }
-const GROUP_ORDER = ["Model site", "South pole region", "North pole region", "Past landings", "Your points"];
+const GROUP_ORDER = ["Model site", "South pole candidates", "Your points", "North pole, for comparison", "Past landings, for comparison"];
 
 function sitesList(sites) {
   const pct = (v) => `${Math.round(v)}%`;
@@ -179,10 +189,13 @@ function panel() {
 // The empty state of the analysis panel.
 function panelHint() {
   return `
-    <h3>Pick a place on the Moon</h3>
-    <p>Click a site to fly there and see how often the Sun (power) and Earth (radio) are up.
-    <strong>Right-click</strong> (or press and hold) anywhere to analyse any point with NASA data.</p>
-    <p><button type="button" class="primary" data-site="shackleton_rim">Start at the model site: Shackleton rim</button></p>`;
+    <h3>Where should we land at the south pole?</h3>
+    <p>The Moon's south pole has ridges that stay in sunlight most of the year, right beside craters that never
+    see the Sun and may hold water ice. A lander needs the <span class="sun">Sun</span> for power and a clear line
+    to <span class="earth">Earth</span> for radio, and the hills decide both.</p>
+    <p>Click a site to see how often each is above its skyline, or <strong>right-click</strong> (press and hold on
+    a phone) anywhere on the Moon to analyse that point with NASA data.</p>
+    <p><button type="button" class="primary" data-site="shackleton_rim">Start at Shackleton rim</button></p>`;
 }
 
 // A clicked spot that has not been analysed yet.
@@ -314,6 +327,15 @@ function sourcesPanel(analyses) {
         at the model site they raise the skyline by up to about 1.5° in some directions.</li>
         <li><strong>Moon picture:</strong> NASA LRO wide-angle camera global mosaic, loaded live from NASA Moon Trek's
         tile service. The stars behind it are decoration, not a real star map.</li>
+        <li><strong>Elevation (LOLA) layer:</strong> NASA LRO LOLA laser-altimeter heights, coloured by height with hill
+        shading (Moon Trek layer LRO_LOLA_ClrShade_Global_256ppd_v06): cool colours are low ground, warm colours are high.
+        This is the same instrument our skylines are built from.</li>
+        <li><strong>Day and night on the Moon:</strong> the dark half is where the Sun is below a flat horizon at the
+        chosen time, from the Sun's position in NASA JPL Horizons. It shows the lunar day moving across the Moon. It
+        also draws <strong>terrain shadows</strong>: from every point the page steps towards the Sun over a NASA LOLA
+        height map (about 4 km per pixel) and darkens the point if the ground in between blocks the Sun. That is the
+        same idea as each site's skyline analysis, which does it far more finely (20 to 237 m) and gives the numbers.
+        The photo's own small shadows are fixed; switch to the Elevation (LOLA) layer to see only the computed ones.</li>
         <li><strong>Feature names on the Moon:</strong> the official IAU names from the
         <a href="https://planetarynames.wr.usgs.gov/" target="_blank" rel="noopener">USGS Gazetteer of Planetary Nomenclature</a>
         (the same names NASA Moon Trek shows), with each feature's size deciding the zoom at which its name appears.</li>
@@ -361,8 +383,8 @@ function shell(sites, analyses, slots, plan, check, checks) {
       (30 days of hourly data).</p>
       ${legend()}
       ${settingsControls()}
-      <label class="same-time"><input type="checkbox" id="same-time"> Same time for A and B
-        <span class="sub">(one time control drives both cards)</span></label>
+      <label class="same-time"><input type="checkbox" id="same-time" checked> Same time for A and B
+        <span class="sub">(untick to give B its own time and compare two moments)</span></label>
       <div class="cards">
         <section class="card">
           ${slotControls("A", sites, slots.a.site, last, slots.a.index)}
@@ -390,7 +412,7 @@ function shell(sites, analyses, slots, plan, check, checks) {
   ];
   return `
     <div id="globe" class="stage"></div>
-    ${hudTop(sites)}
+    ${hudTop(sites, last)}
     ${quickViews()}
     ${drawer()}
     ${sheet(pages)}
@@ -440,7 +462,7 @@ async function main() {
     const last = analyses[sites[0].id].rows.length - 1;
     const slots = {
       a: { site: sites[0].id, index: 0 },
-      b: { site: (sites[1] || sites[0]).id, index: Math.floor(last / 2) },
+      b: { site: (sites[1] || sites[0]).id, index: 0 },
     };
     const plan = { site: sites[0].id, days: 14 };
     app.innerHTML = shell(sites, analyses, slots, plan, check, checks);
@@ -497,6 +519,10 @@ async function main() {
       const title = MENU.find(([p]) => p === page)[1];
       document.querySelector("#sheet-title").textContent = title;
       sheetEl.hidden = false;
+      if (page === "compare") {
+        drawSlot("a", slots.a, analyses);
+        drawSlot("b", slots.b, analyses);
+      }
       sheetEl.querySelector(".sheet-body").scrollTop = 0;
       document.querySelector("#sheet-title").focus();
     };
@@ -558,7 +584,6 @@ async function main() {
       plan.site = id;
       document.querySelector("#plan-site").value = id;
       focusState.index = Math.min(focusState.index, analyses[id].rows.length - 1);
-      if (players.focus) players.focus.playing = false; // its buttons are about to be replaced
       showPanel(siteInfo(site) + focusSky(analyses[id], rowsFor(analyses, id), focusState.index) +
         panelActions(id) + accuracyNote(check?.sites[id], site, checks));
       if (globe) {
@@ -566,6 +591,8 @@ async function main() {
         globe.setPin(site.lat_deg, site.lon_deg_east);
         if (fly) globe.flyTo(site.lat_deg, site.lon_deg_east);
       }
+      updateSun();
+      syncPlayers();
       drawPlan();
     }
 
@@ -642,7 +669,43 @@ async function main() {
         openPage(open.dataset.open);
       }
     });
+    // Day and night on the globe at the analysis panel's time. Any site's row gives the same Sun
+    // direction (tested), so the selected site's row is used.
+    function updateSun() {
+      const btn = document.querySelector("#sun-toggle");
+      if (!globe || !btn) return;
+      const on = btn.getAttribute("aria-pressed") === "true";
+      const site = sites.find((s) => s.id === plan.site);
+      const row = analyses[plan.site].rows[Math.min(focusState.index, analyses[plan.site].rows.length - 1)];
+      globe.setSun(on ? sunDirection(site.lat_deg, site.lon_deg_east, row.sun_az_deg, row.sun_el_deg) : null);
+      document.querySelector("#sun-state").textContent = on ? "on" : "off";
+      const sh = document.querySelector("#shadow-toggle");
+      sh.disabled = !on; // shadows are part of the day/night shading
+      globe.setShadows(on && sh.getAttribute("aria-pressed") === "true");
+    }
+    document.querySelector("#sun-toggle").addEventListener("click", (e) => {
+      const b = e.currentTarget;
+      b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"));
+      updateSun();
+    });
+    document.querySelector("#shadow-toggle").addEventListener("click", (e) => {
+      const b = e.currentTarget;
+      const on = b.getAttribute("aria-pressed") !== "true";
+      b.setAttribute("aria-pressed", String(on));
+      document.querySelector("#shadow-state").textContent = on ? "on" : "off";
+      updateSun();
+    });
+    updateSun();
+    document.querySelector("#lola-toggle").addEventListener("click", (e) => {
+      const b = e.currentTarget;
+      const on = b.getAttribute("aria-pressed") !== "true";
+      b.setAttribute("aria-pressed", String(on));
+      document.querySelector("#lola-state").textContent = on ? "on" : "off";
+      if (globe) globe.setLayer(on ? "lola" : "photo");
+    });
+
     function drawFocus() {
+      updateSun();
       const rows = rowsFor(analyses, plan.site);
       const row = rows[focusState.index];
       const mark = (v) => (v ? "✓ up" : "✗ blocked");
@@ -653,38 +716,47 @@ async function main() {
         `<p class="focus-now"><span class="sun">Sun ${mark(row.sun_visible)}</span> · <span class="earth">Earth ${mark(row.earth_visible)}</span></p>`;
     }
     panelEl.addEventListener("input", (e) => {
-      if (e.target.id !== "focus-time") return;
-      focusState.index = Number(e.target.value);
-      drawFocus();
+      if (e.target.id === "focus-time") setIndex("focus", Number(e.target.value));
     });
 
     // ----- time playback (play/pause, step, speed, loop) and the event ticks, for every slider -----
-    const players = {}; // id ("focus", "a", "b") -> { playing, speed, loop, carry }
+    // ONE CLOCK for the whole page: the bar at the top, the analysis panel's slider, both compare cards
+    // and the day/night shading all show the same moment. The only exception: with "Same time for A and B"
+    // unticked, scenario B keeps its own time (to compare two moments).
+    const players = {}; // "clock" or "b" -> { playing, speed, loop, carry }
     const sameTime = () => document.querySelector("#same-time").checked;
-    const getIndex = (id) => (id === "focus" ? focusState.index : slots[id].index);
-    const lastIndex = (id) => rowsFor(analyses, id === "focus" ? plan.site : slots[id].site).length - 1;
+    const clockKey = (id) => (id === "b" && !sameTime() ? "b" : "clock");
+    const getIndex = (id) => (clockKey(id) === "b" ? slots.b.index : focusState.index);
+    const lastIndex = () => analyses[plan.site].rows.length - 1;
+    const compareOpen = () => !sheetEl.hidden && !sheetEl.querySelector('.sheet-page[data-page="compare"]').hidden;
     function setIndex(id, i) {
-      if (id === "focus") {
-        focusState.index = i;
-        const el = document.querySelector("#focus-time");
-        if (el) el.value = i;
-        return drawFocus();
-      }
-      for (const key of id === "a" && sameTime() ? ["a", "b"] : [id]) {
+      const own = clockKey(id) === "b";
+      for (const key of own ? ["b"] : sameTime() ? ["a", "b"] : ["a"]) {
         slots[key].index = i;
         document.querySelector(`#time-${key}`).value = i;
-        drawSlot(key, slots[key], analyses);
+        if (compareOpen()) drawSlot(key, slots[key], analyses); // otherwise drawn when the page opens
+      }
+      if (own) return;
+      focusState.index = i;
+      const el = document.querySelector("#focus-time");
+      if (el) el.value = i;
+      document.querySelector("#clock-time").value = i;
+      document.querySelector("#clock-out").textContent = `${analyses[plan.site].rows[i].time_utc} UTC`;
+      drawFocus();
+    }
+    const playerState = (key) => (players[key] ||= { playing: false, speed: 6, loop: true, carry: 0 });
+    // Make every set of player buttons that belongs to a clock show that clock's state.
+    function syncPlayers() {
+      for (const el of document.querySelectorAll("[data-player]")) {
+        const p = playerState(clockKey(el.dataset.player));
+        const b = el.querySelector('[data-act="play"]');
+        b.textContent = p.playing ? "⏸" : "▶";
+        b.setAttribute("aria-pressed", String(p.playing));
+        b.setAttribute("aria-label", p.playing ? "Pause" : "Play");
+        el.querySelector('[data-act="speed"]').value = String(p.speed);
+        el.querySelector('[data-act="loop"]').checked = p.loop;
       }
     }
-    const playerState = (id) => (players[id] ||= { playing: false, speed: 6, loop: true, carry: 0 });
-    const showPlaying = (id) => {
-      const b = document.querySelector(`[data-player="${id}"] [data-act="play"]`);
-      if (!b) return;
-      const on = playerState(id).playing;
-      b.textContent = on ? "⏸" : "▶";
-      b.setAttribute("aria-pressed", String(on));
-      b.setAttribute("aria-label", on ? "Pause" : "Play");
-    };
     let rafId = null;
     let lastFrame = null;
     function playFrame(now) {
@@ -696,17 +768,14 @@ async function main() {
       }
       const dt = lastFrame === null ? 0 : Math.min(250, now - lastFrame); // no big jump after a hidden tab
       lastFrame = now;
-      for (const [id, p] of active) {
-        if (!document.querySelector(`[data-player="${id}"]`)) { // its panel was redrawn
-          p.playing = false;
-          continue;
-        }
-        const r = advance({ index: getIndex(id), carry: p.carry }, dt, p.speed, lastIndex(id), p.loop);
+      for (const [key, p] of active) {
+        const id = key === "b" ? "b" : "clock";
+        const r = advance({ index: getIndex(id), carry: p.carry }, dt, p.speed, lastIndex(), p.loop);
         p.carry = r.carry;
         if (r.index !== getIndex(id)) setIndex(id, r.index);
         if (r.ended) {
           p.playing = false;
-          showPlaying(id);
+          syncPlayers();
         }
       }
       rafId = requestAnimationFrame(playFrame);
@@ -717,35 +786,39 @@ async function main() {
       const btn = e.target.closest("[data-player] button[data-act]");
       if (!btn) return;
       const id = btn.closest("[data-player]").dataset.player;
-      const p = playerState(id);
+      const p = playerState(clockKey(id));
       const i = getIndex(id);
       if (btn.dataset.act === "back") setIndex(id, Math.max(0, i - 1));
-      if (btn.dataset.act === "fwd") setIndex(id, Math.min(lastIndex(id), i + 1));
+      if (btn.dataset.act === "fwd") setIndex(id, Math.min(lastIndex(), i + 1));
       if (btn.dataset.act === "play") {
         p.playing = !p.playing;
         p.carry = 0;
-        if (p.playing && i >= lastIndex(id) && !p.loop) setIndex(id, 0);
-        showPlaying(id);
+        if (p.playing && i >= lastIndex() && !p.loop) setIndex(id, 0);
+        syncPlayers();
         if (p.playing && rafId === null) rafId = requestAnimationFrame(playFrame);
       }
     });
     document.addEventListener("change", (e) => {
       const el = e.target.closest("[data-player] [data-act]");
       if (!el) return;
-      const p = playerState(el.closest("[data-player]").dataset.player);
+      const p = playerState(clockKey(el.closest("[data-player]").dataset.player));
       if (el.dataset.act === "speed") p.speed = Number(el.value);
       if (el.dataset.act === "loop") p.loop = el.checked;
+      syncPlayers();
     });
-    document.querySelector("#same-time").addEventListener("change", (e) => {
-      const on = e.target.checked;
+    document.querySelector("#clock-time").addEventListener("input", (e) => setIndex("clock", Number(e.target.value)));
+    const applySameTime = () => {
+      const on = sameTime();
       document.querySelector("#time-b").disabled = on;
       document.querySelector('[data-player="b"]').hidden = on;
       if (on) {
         playerState("b").playing = false;
-        showPlaying("b");
-        setIndex("a", slots.a.index);
+        setIndex("clock", focusState.index); // B joins the clock
       }
-    });
+      syncPlayers();
+    };
+    document.querySelector("#same-time").addEventListener("change", applySameTime);
+    applySameTime();
 
     // Search box: jump to a site by name.
     document.querySelector("#search-form").addEventListener("submit", (e) => {

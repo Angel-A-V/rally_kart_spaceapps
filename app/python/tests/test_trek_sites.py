@@ -56,7 +56,9 @@ class Helpers(unittest.TestCase):
 
     def test_pole_distance(self):
         self.assertAlmostEqual(pole_distance_km(-90.0), 0.0)
-        self.assertAlmostEqual(pole_distance_km(-80.0), 304.0, delta=0.1)  # the edge of the 80S map
+        self.assertAlmostEqual(pole_distance_km(-80.0), 303.2, delta=0.1)  # along the surface (the map formula gives 304.0)
+        self.assertAlmostEqual(pole_distance_km(0.674), 2749.4, delta=1.0)  # Apollo 11: a quarter of the way round, not 3,516
+        self.assertAlmostEqual(pole_distance_km(90.0), 5458.2, delta=0.5)   # north pole: half the circumference
         self.assertAlmostEqual(pole_distance_km(-89.781), 6.6, delta=0.1)  # the model site
 
 
